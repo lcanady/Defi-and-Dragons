@@ -1,66 +1,120 @@
-## Foundry
+# DnD On-Chain Game
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A decentralized role-playing game built on Ethereum using Foundry.
 
-Foundry consists of:
+## Overview
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+This project implements a DnD-inspired on-chain game with the following features:
+- Character NFTs with stats and equipment slots
+- Equipment NFTs for weapons, armor, and accessories
+- In-game currency (GOLD token)
+- Quest system with rewards
+- Random item drops using Chainlink VRF
+- Marketplace for trading items
 
-## Documentation
+## Smart Contracts
 
-https://book.getfoundry.sh/
+- `Character.sol`: ERC721 contract for character NFTs
+- `Equipment.sol`: ERC1155 contract for equipment NFTs
+- `GameToken.sol`: ERC20 contract for in-game currency
+- `Quest.sol`: Manages quests and rewards
+- `ItemDrop.sol`: Handles random item drops using Chainlink VRF
+- `Marketplace.sol`: Facilitates trading of equipment NFTs
 
-## Usage
+## Prerequisites
 
-### Build
+- [Foundry](https://book.getfoundry.sh/getting-started/installation.html)
+- [Node.js](https://nodejs.org/) (for development tools)
+- Ethereum wallet (e.g., MetaMask)
+- Chainlink VRF subscription (for random item drops)
 
-```shell
-$ forge build
+## Setup
+
+1. Clone the repository:
+
+```bash
+git clone <repository-url>
+cd dnd
 ```
 
-### Test
+2. Install dependencies:
 
-```shell
-$ forge test
+```bash
+forge install
 ```
 
-### Format
+3. Create a `.env` file with the following variables:
 
-```shell
-$ forge fmt
+```
+SEPOLIA_RPC_URL=your_sepolia_rpc_url
+MAINNET_RPC_URL=your_mainnet_rpc_url
+ETHERSCAN_API_KEY=your_etherscan_api_key
+PRIVATE_KEY=your_deployer_private_key
+VRF_COORDINATOR=chainlink_vrf_coordinator_address
+VRF_SUBSCRIPTION_ID=your_vrf_subscription_id
+VRF_KEY_HASH=your_vrf_key_hash
 ```
 
-### Gas Snapshots
+4. Compile contracts:
 
-```shell
-$ forge snapshot
+```bash
+forge build
 ```
 
-### Anvil
+5. Run tests:
 
-```shell
-$ anvil
+```bash
+forge test
 ```
 
-### Deploy
+## Deployment
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+1. Deploy to Sepolia testnet:
+
+```bash
+forge script script/Deploy.s.sol:Deploy --rpc-url sepolia --broadcast --verify
 ```
 
-### Cast
+2. Deploy to mainnet:
 
-```shell
-$ cast <subcommand>
+```bash
+forge script script/Deploy.s.sol:Deploy --rpc-url mainnet --broadcast --verify
 ```
 
-### Help
+## Testing
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+The project includes comprehensive tests for all contracts. Run them with:
+
+```bash
+# Run all tests
+forge test
+
+# Run specific test file
+forge test --match-path test/Character.t.sol
+
+# Run with gas reporting
+forge test --gas-report
+
+# Run with verbosity
+forge test -vvv
 ```
+
+## Security
+
+- All contracts use OpenZeppelin's battle-tested implementations
+- Access control implemented using `Ownable`
+- Chainlink VRF for secure randomness
+- Reentrancy protection in marketplace transactions
+- Comprehensive test coverage
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
