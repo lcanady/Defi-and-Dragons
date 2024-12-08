@@ -34,6 +34,17 @@ A decentralized role-playing game built on Ethereum that combines traditional RP
 - Simplified inventory system
 - Character-specific transactions
 
+## 💰 Smart Contract API
+
+For detailed information about all smart contract functions, parameters, and data structures, please refer to our [API Documentation](docs/API.md). The API docs include:
+
+- Complete function signatures and descriptions
+- Parameter details and return values
+- Access control specifications
+- Data structure definitions
+- Event documentation
+- Error handling information
+
 ## 💰 DeFi Components
 
 ### Game Token (GameToken.sol)
