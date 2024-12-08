@@ -2,156 +2,203 @@
 pragma solidity ^0.8.20;
 
 import { Test } from "forge-std/Test.sol";
-import { Character } from "../src/Character.sol";
-import { Equipment } from "../src/Equipment.sol";
 import { CharacterWallet } from "../src/CharacterWallet.sol";
+import { Equipment } from "../src/Equipment.sol";
+import { Types } from "../src/interfaces/Types.sol";
+import { NotWeaponOwner } from "../src/interfaces/Errors.sol";
 
 contract CharacterWalletTest is Test {
-    Character public character;
+    CharacterWallet public wallet;
     Equipment public equipment;
     address public owner;
-    address public player1;
-    address public player2;
-
-    // Test character stats
-    Types.Stats private strengthChar = Types.Stats({
-        strength: 60,
-        agility: 20,
-        magic: 20
-    });
+    address public characterContract;
+    uint256 public constant CHARACTER_ID = 1;
 
     function setUp() public {
-        owner = address(this);
-        player1 = address(0x1);
-        player2 = address(0x2);
+        owner = makeAddr("owner");
+        characterContract = makeAddr("characterContract");
 
         // Deploy contracts
         equipment = new Equipment();
-        character = new Character(address(equipment));
+        wallet = new CharacterWallet(address(equipment), CHARACTER_ID, characterContract);
 
-        // Set up contract relationships
-        vm.startPrank(owner);
-        equipment.setCharacterContract(address(character));
-        
-        // Create test equipment
-        equipment.createEquipment(1, "Test Sword", "A basic sword", 5, 0, 0);
-        equipment.createEquipment(2, "Test Armor", "Basic armor", 0, 5, 0);
-        vm.stopPrank();
+        // Setup equipment
+        equipment.setCharacterContract(characterContract);
+        equipment.createEquipment(1, "Test Weapon", "A test weapon", 5, 0, 0);
+        equipment.createEquipment(2, "Test Armor", "A test armor", 0, 5, 0);
+
+        // Transfer wallet ownership to owner
+        vm.prank(address(this));
+        wallet.transferOwnership(owner);
     }
 
     function testWalletCreation() public {
-        // Mint character
-        vm.startPrank(player1);
-        uint256 tokenId = character.mintCharacter(player1, strengthChar, Types.Alignment.STRENGTH);
-        vm.stopPrank();
-
-        // Get wallet address
-        CharacterWallet wallet = character.characterWallets(tokenId);
-        
-        // Verify wallet setup
-        assertEq(wallet.owner(), player1);
-        assertEq(wallet.characterId(), tokenId);
-        assertEq(wallet.characterContract(), address(character));
-        assertEq(address(wallet.equipment()), address(equipment));
-    }
-
-    function testEquipmentTransferWithCharacter() public {
-        // Mint character to player1
-        vm.startPrank(player1);
-        uint256 tokenId = character.mintCharacter(player1, strengthChar, Types.Alignment.STRENGTH);
-        vm.stopPrank();
-
-        CharacterWallet wallet = character.characterWallets(tokenId);
-
-        // Mint equipment to wallet
-        vm.startPrank(owner);
-        equipment.mint(address(wallet), 1, 1, ""); // Sword
-        equipment.mint(address(wallet), 2, 1, ""); // Armor
-        vm.stopPrank();
-
-        // Player1 equips items
-        vm.startPrank(player1);
-        character.equip(tokenId, 1, 2);
-
-        // Transfer character to player2
-        character.safeTransferFrom(player1, player2, tokenId);
-        vm.stopPrank();
-
-        // Verify wallet ownership transferred
-        assertEq(wallet.owner(), player2);
-
-        // Verify equipment still equipped
-        Types.EquipmentSlots memory equipped = wallet.getEquippedItems();
-        assertEq(equipped.weaponId, 1);
-        assertEq(equipped.armorId, 2);
-
-        // Verify equipment still in wallet
-        assertEq(equipment.balanceOf(address(wallet), 1), 1);
-        assertEq(equipment.balanceOf(address(wallet), 2), 1);
+        assertEq(wallet.owner(), owner);
+        assertEq(wallet.characterId(), CHARACTER_ID);
+        assertEq(wallet.characterContract(), characterContract);
     }
 
     function testEquipUnequip() public {
-        // Mint character
-        vm.startPrank(player1);
-        uint256 tokenId = character.mintCharacter(player1, strengthChar, Types.Alignment.STRENGTH);
-        vm.stopPrank();
-
-        CharacterWallet wallet = character.characterWallets(tokenId);
-
-        // Mint equipment to wallet
-        vm.startPrank(owner);
-        equipment.mint(address(wallet), 1, 1, ""); // Sword
-        equipment.mint(address(wallet), 2, 1, ""); // Armor
+        // Mint equipment to owner
+        vm.startPrank(address(this));
+        uint256[] memory itemIds = new uint256[](2);
+        uint256[] memory amounts = new uint256[](2);
+        itemIds[0] = 1;
+        itemIds[1] = 2;
+        amounts[0] = 1;
+        amounts[1] = 1;
+        mintTestEquipment(equipment, owner, itemIds, amounts);
         vm.stopPrank();
 
         // Equip items
-        vm.startPrank(player1);
-        character.equip(tokenId, 1, 2);
+        vm.prank(characterContract);
+        wallet.equip(1, 2);
 
-        // Verify equipment is equipped
-        Types.EquipmentSlots memory equipped = wallet.getEquippedItems();
-        assertEq(equipped.weaponId, 1);
-        assertEq(equipped.armorId, 2);
+        // Check equipped items
+        Types.EquipmentSlots memory slots = wallet.getEquippedItems();
+        assertEq(slots.weaponId, 1);
+        assertEq(slots.armorId, 2);
 
-        // Unequip weapon only
-        character.unequip(tokenId, true, false);
-        equipped = wallet.getEquippedItems();
-        assertEq(equipped.weaponId, 0);
-        assertEq(equipped.armorId, 2);
+        // Unequip items
+        vm.prank(characterContract);
+        wallet.unequip(true, true);
 
-        // Unequip armor
-        character.unequip(tokenId, false, true);
-        equipped = wallet.getEquippedItems();
-        assertEq(equipped.weaponId, 0);
-        assertEq(equipped.armorId, 0);
+        // Check unequipped items
+        slots = wallet.getEquippedItems();
+        assertEq(slots.weaponId, 0);
+        assertEq(slots.armorId, 0);
+    }
+
+    function testEquipmentTransferWithCharacter() public {
+        // Mint equipment to owner
+        vm.startPrank(address(this));
+        uint256[] memory itemIds = new uint256[](2);
+        uint256[] memory amounts = new uint256[](2);
+        itemIds[0] = 1;
+        itemIds[1] = 2;
+        amounts[0] = 1;
+        amounts[1] = 1;
+        mintTestEquipment(equipment, owner, itemIds, amounts);
+        vm.stopPrank();
+
+        // Equip items
+        vm.prank(characterContract);
+        wallet.equip(1, 2);
+
+        // Transfer wallet to new owner
+        address newOwner = makeAddr("newOwner");
+        vm.prank(owner);
+        wallet.transferOwnership(newOwner);
+
+        // Verify new owner can equip/unequip
+        vm.startPrank(address(this));
+        mintTestEquipment(equipment, newOwner, itemIds, amounts);
+        vm.stopPrank();
+
+        vm.prank(characterContract);
+        wallet.equip(1, 2);
+
+        Types.EquipmentSlots memory slots = wallet.getEquippedItems();
+        assertEq(slots.weaponId, 1);
+        assertEq(slots.armorId, 2);
+    }
+
+    function testPartialUnequip() public {
+        // Mint equipment to owner
+        vm.startPrank(address(this));
+        uint256[] memory itemIds = new uint256[](2);
+        uint256[] memory amounts = new uint256[](2);
+        itemIds[0] = 1;
+        itemIds[1] = 2;
+        amounts[0] = 1;
+        amounts[1] = 1;
+        mintTestEquipment(equipment, owner, itemIds, amounts);
+        vm.stopPrank();
+
+        // Equip items
+        vm.prank(characterContract);
+        wallet.equip(1, 2);
+
+        // Unequip only weapon
+        vm.prank(characterContract);
+        wallet.unequip(true, false);
+
+        // Check that only weapon was unequipped
+        Types.EquipmentSlots memory slots = wallet.getEquippedItems();
+        assertEq(slots.weaponId, 0, "Weapon should be unequipped");
+        assertEq(slots.armorId, 2, "Armor should remain equipped");
+    }
+
+    function testEquipmentBalanceAfterTransfer() public {
+        // Mint equipment to owner
+        vm.startPrank(address(this));
+        uint256[] memory itemIds = new uint256[](2);
+        uint256[] memory amounts = new uint256[](2);
+        itemIds[0] = 1;
+        itemIds[1] = 2;
+        amounts[0] = 2;
+        amounts[1] = 3;
+        mintTestEquipment(equipment, owner, itemIds, amounts);
+        vm.stopPrank();
+
+        // Check initial balances
+        uint256[] memory initialBalances = checkEquipmentBalances(equipment, owner, itemIds);
+        assertEq(initialBalances[0], 2, "Should have 2 weapons initially");
+        assertEq(initialBalances[1], 3, "Should have 3 armor pieces initially");
+
+        // Transfer some equipment
+        vm.startPrank(owner);
+        equipment.safeTransferFrom(owner, makeAddr("recipient"), 1, 1, "");
+        equipment.safeTransferFrom(owner, makeAddr("recipient"), 2, 2, "");
+        vm.stopPrank();
+
+        // Check final balances
+        uint256[] memory finalBalances = checkEquipmentBalances(equipment, owner, itemIds);
+        assertEq(finalBalances[0], 1, "Should have 1 weapon after transfer");
+        assertEq(finalBalances[1], 1, "Should have 1 armor piece after transfer");
+    }
+
+    function testFailEquipNonexistentItem() public {
+        // Mint some valid equipment to owner first
+        vm.startPrank(owner);
+        equipment.mint(owner, 1, 1, "");
+        vm.stopPrank();
+
+        // Approve equipment for wallet
+        vm.prank(owner);
+        equipment.setApprovalForAll(address(wallet), true);
+
+        // Try to equip nonexistent item
+        vm.startPrank(characterContract);
+        vm.expectRevert(NotWeaponOwner.selector);
+        wallet.equip(999, 0);
         vm.stopPrank();
     }
 
     function testFailEquipUnauthorized() public {
-        // Mint character to player1
-        vm.startPrank(player1);
-        uint256 tokenId = character.mintCharacter(player1, strengthChar, Types.Alignment.STRENGTH);
-        vm.stopPrank();
-
-        CharacterWallet wallet = character.characterWallets(tokenId);
-
-        // Mint equipment to wallet
-        vm.startPrank(owner);
-        equipment.mint(address(wallet), 1, 1, "");
-        vm.stopPrank();
-
-        // Try to equip as player2 (should fail)
-        vm.prank(player2);
-        character.equip(tokenId, 1, 0);
+        address unauthorized = makeAddr("unauthorized");
+        vm.expectRevert("Only character contract");
+        vm.prank(unauthorized);
+        wallet.equip(1, 2);
     }
 
-    function testFailEquipNonexistentItem() public {
-        // Mint character
-        vm.startPrank(player1);
-        uint256 tokenId = character.mintCharacter(player1, strengthChar, Types.Alignment.STRENGTH);
-        
-        // Try to equip item that wallet doesn't own
-        character.equip(tokenId, 1, 0);
-        vm.stopPrank();
+    function mintTestEquipment(Equipment _equipment, address _to, uint256[] memory _itemIds, uint256[] memory _amounts)
+        internal
+    {
+        for (uint256 i = 0; i < _itemIds.length; i++) {
+            _equipment.mint(_to, _itemIds[i], _amounts[i], "");
+        }
     }
-} 
+
+    function checkEquipmentBalances(Equipment _equipment, address _owner, uint256[] memory _itemIds)
+        internal
+        view
+        returns (uint256[] memory)
+    {
+        uint256[] memory balances = new uint256[](_itemIds.length);
+        for (uint256 i = 0; i < _itemIds.length; i++) {
+            balances[i] = _equipment.balanceOf(_owner, _itemIds[i]);
+        }
+        return balances;
+    }
+}

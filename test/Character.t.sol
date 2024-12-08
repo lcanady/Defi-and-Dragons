@@ -2,111 +2,186 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import "../src/Character.sol";
-import "../src/Equipment.sol";
-import "../src/interfaces/Types.sol";
+import { Character } from "../src/Character.sol";
+import { Equipment } from "../src/Equipment.sol";
+import { CharacterWallet } from "../src/CharacterWallet.sol";
+import { Types } from "../src/interfaces/Types.sol";
 
 contract CharacterTest is Test {
     Character public character;
     Equipment public equipment;
     address public owner;
-    address public user;
-
-    // Test character stats
-    Types.Stats strengthChar = Types.Stats({ strength: 60, agility: 20, magic: 20 });
-
-    Types.Stats agilityChar = Types.Stats({ strength: 20, agility: 60, magic: 20 });
-
-    Types.Stats magicChar = Types.Stats({ strength: 20, agility: 20, magic: 60 });
-
-    Types.Stats tankStrengthChar = Types.Stats({ strength: 50, agility: 25, magic: 25 });
-
-    Types.Stats tankAgilityChar = Types.Stats({ strength: 25, agility: 50, magic: 25 });
-
-    Types.Stats tankMagicChar = Types.Stats({ strength: 25, agility: 25, magic: 50 });
+    address public player;
+    uint256 public characterId;
 
     function setUp() public {
         owner = address(this);
-        user = address(0x1);
+        player = makeAddr("player");
 
         // Deploy contracts
-        character = new Character(address(0)); // Mock equipment address
         equipment = new Equipment();
+        character = new Character(address(equipment));
+
+        // Setup equipment
+        equipment.setCharacterContract(address(character));
+        equipment.createEquipment(1, "Test Weapon", "A test weapon", 5, 0, 0);
+        equipment.createEquipment(2, "Test Armor", "A test armor", 0, 5, 0);
+
+        // Mint character
+        vm.startPrank(owner);
+        characterId = character.mintCharacter(
+            player, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
+        );
+        vm.stopPrank();
     }
 
     function testMint() public {
-        uint256 tokenId = character.mintCharacter(msg.sender, strengthChar, Types.Alignment.STRENGTH);
-        assertEq(character.ownerOf(tokenId), msg.sender);
+        assertEq(character.ownerOf(characterId), player);
+        assertEq(character.balanceOf(player), 1);
+    }
 
-        (Types.Stats memory stats,, Types.CharacterState memory state) = character.getCharacter(tokenId);
-        assertEq(stats.strength, strengthChar.strength);
-        assertEq(stats.agility, strengthChar.agility);
-        assertEq(stats.magic, strengthChar.magic);
+    function testUpdateStats() public {
+        vm.startPrank(owner);
+        character.updateStats(characterId, Types.Stats({ strength: 15, agility: 12, magic: 8 }));
+        vm.stopPrank();
+
+        (Types.Stats memory stats,,) = character.getCharacter(characterId);
+        assertEq(stats.strength, 15);
+        assertEq(stats.agility, 12);
+        assertEq(stats.magic, 8);
+    }
+
+    function testUpdateState() public {
+        vm.startPrank(owner);
+        character.updateState(
+            characterId,
+            Types.CharacterState({
+                health: 100,
+                consecutiveHits: 3,
+                damageReceived: 50,
+                roundsParticipated: 5,
+                alignment: Types.Alignment.STRENGTH
+            })
+        );
+        vm.stopPrank();
+
+        (,, Types.CharacterState memory state) = character.getCharacter(characterId);
+        assertEq(uint256(state.health), 100);
+        assertEq(state.consecutiveHits, 3);
+        assertEq(state.damageReceived, 50);
+        assertEq(state.roundsParticipated, 5);
         assertEq(uint256(state.alignment), uint256(Types.Alignment.STRENGTH));
     }
 
     function testEquip() public {
-        // Deploy equipment with proper setup
-        equipment = new Equipment();
-        character = new Character(address(equipment));
+        // Get character's wallet
+        CharacterWallet wallet = character.characterWallets(characterId);
+
+        // Set up Equipment contract
+        vm.startPrank(owner);
         equipment.setCharacterContract(address(character));
 
-        // Create equipment as owner
-        vm.startPrank(owner);
-        equipment.createEquipment(1, "Test Weapon", "A test weapon", 5, 0, 0);
-        equipment.createEquipment(2, "Test Armor", "A test armor", 0, 5, 0);
+        // Mint equipment to player
+        equipment.mint(player, 1, 1, "");
+        equipment.mint(player, 2, 1, "");
+        vm.stopPrank();
 
-        // Mint character to user
-        uint256 tokenId = character.mintCharacter(user, strengthChar, Types.Alignment.STRENGTH);
-        
+        // Transfer wallet ownership to player
+        vm.prank(address(character));
+        wallet.transferOwnership(player);
+
+        // Player approves equipment for both wallet and character contract
+        vm.startPrank(player);
+        equipment.setApprovalForAll(address(wallet), true);
+        equipment.setApprovalForAll(address(character), true);
+        vm.stopPrank();
+
+        // Equip items through character contract
+        vm.prank(player);
+        character.equip(characterId, 1, 2);
+
+        // Check equipped items
+        (, Types.EquipmentSlots memory slots,) = character.getCharacter(characterId);
+        assertEq(slots.weaponId, 1);
+        assertEq(slots.armorId, 2);
+    }
+
+    function testFailEquipUnownedItems() public {
         // Get character's wallet
-        CharacterWallet wallet = character.characterWallets(tokenId);
-        
-        // Mint equipment to wallet
-        equipment.mint(address(wallet), 1, 1, "");
-        equipment.mint(address(wallet), 2, 1, "");
-        vm.stopPrank();
+        CharacterWallet wallet = character.characterWallets(characterId);
 
-        // Equip items as the user
-        vm.startPrank(user);
-        character.equip(tokenId, 1, 2);
-        vm.stopPrank();
+        // Transfer wallet ownership to player
+        vm.prank(owner);
+        wallet.transferOwnership(player);
 
-        // Verify equipment
-        (, Types.EquipmentSlots memory equipped,) = character.getCharacter(tokenId);
-        assertEq(equipped.weaponId, 1);
-        assertEq(equipped.armorId, 2);
+        // Try to equip items without owning them
+        vm.startPrank(player);
+        equipment.setApprovalForAll(address(wallet), true);
+        vm.expectRevert();
+        character.equip(characterId, 1, 2);
+        vm.stopPrank();
     }
 
-    function testUpdateStats() public {
-        uint256 tokenId = character.mintCharacter(msg.sender, agilityChar, Types.Alignment.AGILITY);
+    function testFailEquipWrongCharacter() public {
+        // Create another character
+        vm.startPrank(owner);
+        uint256 otherCharacterId = character.mintCharacter(
+            makeAddr("other"), Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
+        );
+        vm.stopPrank();
 
-        character.updateStats(tokenId, strengthChar);
+        // Mint equipment to player
+        uint256[] memory itemIds = new uint256[](2);
+        uint256[] memory amounts = new uint256[](2);
+        itemIds[0] = 1;
+        itemIds[1] = 2;
+        amounts[0] = 1;
+        amounts[1] = 1;
+        vm.startPrank(owner);
+        mintTestEquipment(equipment, player, itemIds, amounts);
+        vm.stopPrank();
 
-        (Types.Stats memory stats,,) = character.getCharacter(tokenId);
-        assertEq(stats.strength, strengthChar.strength);
-        assertEq(stats.agility, strengthChar.agility);
-        assertEq(stats.magic, strengthChar.magic);
+        // Try to equip items to wrong character (should fail)
+        vm.prank(player);
+        vm.expectRevert("NotCharacterOwner()");
+        character.equip(otherCharacterId, 1, 2);
     }
 
-    function testUpdateState() public {
-        uint256 tokenId = character.mintCharacter(msg.sender, magicChar, Types.Alignment.MAGIC);
+    function testEquipmentBalances() public {
+        // Mint multiple items
+        vm.startPrank(owner);
+        uint256[] memory itemIds = new uint256[](2);
+        uint256[] memory amounts = new uint256[](2);
+        itemIds[0] = 1;
+        itemIds[1] = 2;
+        amounts[0] = 3;
+        amounts[1] = 2;
+        mintTestEquipment(equipment, player, itemIds, amounts);
+        vm.stopPrank();
 
-        Types.CharacterState memory newState = Types.CharacterState({
-            health: 80,
-            consecutiveHits: 2,
-            damageReceived: 20,
-            roundsParticipated: 5,
-            alignment: Types.Alignment.STRENGTH
-        });
+        // Check balances
+        uint256[] memory balances = checkEquipmentBalances(equipment, player, itemIds);
+        assertEq(balances[0], 3, "Should have 3 weapons");
+        assertEq(balances[1], 2, "Should have 2 armor pieces");
+    }
 
-        character.updateState(tokenId, newState);
+    function mintTestEquipment(Equipment _equipment, address _to, uint256[] memory _itemIds, uint256[] memory _amounts)
+        internal
+    {
+        for (uint256 i = 0; i < _itemIds.length; i++) {
+            _equipment.mint(_to, _itemIds[i], _amounts[i], "");
+        }
+    }
 
-        (,, Types.CharacterState memory state) = character.getCharacter(tokenId);
-        assertEq(state.health, newState.health);
-        assertEq(state.consecutiveHits, newState.consecutiveHits);
-        assertEq(state.damageReceived, newState.damageReceived);
-        assertEq(state.roundsParticipated, newState.roundsParticipated);
-        assertEq(uint256(state.alignment), uint256(newState.alignment));
+    function checkEquipmentBalances(Equipment _equipment, address _owner, uint256[] memory _itemIds)
+        internal
+        view
+        returns (uint256[] memory)
+    {
+        uint256[] memory balances = new uint256[](_itemIds.length);
+        for (uint256 i = 0; i < _itemIds.length; i++) {
+            balances[i] = _equipment.balanceOf(_owner, _itemIds[i]);
+        }
+        return balances;
     }
 }

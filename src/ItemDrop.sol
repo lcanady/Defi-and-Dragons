@@ -4,142 +4,99 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
+import "./interfaces/Types.sol";
 import "./interfaces/IEquipment.sol";
 
 contract ItemDrop is VRFConsumerBaseV2, Ownable {
-    VRFCoordinatorV2Interface private immutable coordinator;
-    IEquipment private immutable equipment;
+    VRFCoordinatorV2Interface public immutable vrfCoordinator;
+    IEquipment public equipment;
 
-    // Chainlink VRF configuration
-    bytes32 private immutable keyHash;
-    uint64 private immutable subscriptionId;
-    uint16 private constant REQUEST_CONFIRMATIONS = 3;
-    uint32 private constant CALLBACK_GAS_LIMIT = 200000;
-    uint32 private constant NUM_WORDS = 1;
+    uint64 public subscriptionId;
+    bytes32 public keyHash;
+    uint32 public callbackGasLimit;
+    uint16 public requestConfirmations;
+    uint32 public numWords;
 
-    // Drop request tracking
     struct DropRequest {
         address player;
-        uint256 dropTableId;
+        uint256 dropRateBonus;
         bool fulfilled;
     }
-    
+
     mapping(uint256 => DropRequest) public dropRequests;
-    
-    // Drop table configuration
-    struct DropEntry {
-        uint256 equipmentId;
-        uint16 weight;  // Relative probability weight (1-1000)
-    }
-    
-    struct DropTable {
-        string name;
-        uint16 totalWeight;
-        bool active;
-        DropEntry[] entries;
-    }
-    
-    mapping(uint256 => DropTable) public dropTables;
-    
-    // Events
-    event DropRequested(uint256 indexed requestId, address indexed player, uint256 dropTableId);
-    event DropFulfilled(uint256 indexed requestId, address indexed player, uint256 equipmentId);
-    event DropTableCreated(uint256 indexed dropTableId, string name);
-    event DropTableUpdated(uint256 indexed dropTableId, string name);
+    mapping(uint256 => uint256[]) public requestToRandomWords;
+
+    event RandomWordsRequested(uint256 indexed requestId, address indexed player);
+    event RandomWordsFulfilled(uint256 indexed requestId, uint256[] randomWords);
+    event ItemDropped(address indexed player, uint256 indexed itemId, uint256 amount);
 
     constructor(
         address _vrfCoordinator,
-        address _equipment,
+        uint64 _subscriptionId,
         bytes32 _keyHash,
-        uint64 _subscriptionId
-    ) VRFConsumerBaseV2(_vrfCoordinator) Ownable(msg.sender) {
-        coordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
-        equipment = IEquipment(_equipment);
-        keyHash = _keyHash;
+        uint32 _callbackGasLimit,
+        uint16 _requestConfirmations,
+        uint32 _numWords
+    ) VRFConsumerBaseV2(_vrfCoordinator) {
+        _transferOwnership(msg.sender);
+        vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
         subscriptionId = _subscriptionId;
+        keyHash = _keyHash;
+        callbackGasLimit = _callbackGasLimit;
+        requestConfirmations = _requestConfirmations;
+        numWords = _numWords;
     }
 
-    function createDropTable(
-        uint256 dropTableId,
-        string memory name,
-        DropEntry[] memory entries
-    ) external onlyOwner {
-        require(!dropTables[dropTableId].active, "Drop table already exists");
-        require(entries.length > 0, "Must have at least one entry");
-
-        uint16 totalWeight;
-        for (uint i = 0; i < entries.length; i++) {
-            require(entries[i].weight > 0 && entries[i].weight <= 1000, "Invalid weight");
-            totalWeight += entries[i].weight;
-        }
-
-        dropTables[dropTableId] = DropTable({
-            name: name,
-            totalWeight: totalWeight,
-            active: true,
-            entries: entries
-        });
-
-        emit DropTableCreated(dropTableId, name);
+    function initialize(address _equipment) external onlyOwner {
+        require(address(equipment) == address(0), "Already initialized");
+        equipment = IEquipment(_equipment);
     }
 
-    function requestDrop(uint256 dropTableId) external returns (uint256) {
-        require(dropTables[dropTableId].active, "Drop table not active");
-        
-        uint256 requestId = coordinator.requestRandomWords(
-            keyHash,
-            subscriptionId,
-            REQUEST_CONFIRMATIONS,
-            CALLBACK_GAS_LIMIT,
-            NUM_WORDS
-        );
+    function requestRandomDrop(address player, uint256 dropRateBonus) external {
+        uint256 requestId =
+            vrfCoordinator.requestRandomWords(keyHash, subscriptionId, requestConfirmations, callbackGasLimit, numWords);
 
-        dropRequests[requestId] = DropRequest({
-            player: msg.sender,
-            dropTableId: dropTableId,
-            fulfilled: false
-        });
+        dropRequests[requestId] = DropRequest({ player: player, dropRateBonus: dropRateBonus, fulfilled: false });
 
-        emit DropRequested(requestId, msg.sender, dropTableId);
-        return requestId;
+        emit RandomWordsRequested(requestId, player);
     }
 
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
         DropRequest storage request = dropRequests[requestId];
         require(!request.fulfilled, "Request already fulfilled");
-        
-        DropTable storage dropTable = dropTables[request.dropTableId];
-        uint256 roll = (randomWords[0] % dropTable.totalWeight) + 1;
-        
-        uint256 selectedEquipmentId;
-        uint16 currentTotal;
-        
-        for (uint i = 0; i < dropTable.entries.length; i++) {
-            currentTotal += dropTable.entries[i].weight;
-            if (roll <= currentTotal) {
-                selectedEquipmentId = dropTable.entries[i].equipmentId;
-                break;
+
+        request.fulfilled = true;
+        requestToRandomWords[requestId] = randomWords;
+
+        // Process drops using the random words
+        for (uint256 i = 0; i < randomWords.length; i++) {
+            uint256 rand = randomWords[i];
+
+            // Example: Basic drop rate calculation
+            uint256 dropRate = 50 + request.dropRateBonus; // 50% base rate
+            if (rand % 100 < dropRate) {
+                // Determine item type and amount based on random number
+                uint256 itemId = (rand % 5) + 1; // Items 1-5
+                uint256 amount = 1;
+
+                // Mint the item
+                equipment.mint(request.player, itemId, amount, "");
+                emit ItemDropped(request.player, itemId, amount);
             }
         }
 
-        request.fulfilled = true;
-        equipment.mint(request.player, selectedEquipmentId, 1, "");
-        
-        emit DropFulfilled(requestId, request.player, selectedEquipmentId);
+        emit RandomWordsFulfilled(requestId, randomWords);
     }
 
-    function getDropTable(uint256 dropTableId) external view returns (
-        string memory name,
-        uint16 totalWeight,
-        bool active,
-        DropEntry[] memory entries
-    ) {
-        DropTable storage dropTable = dropTables[dropTableId];
-        return (
-            dropTable.name,
-            dropTable.totalWeight,
-            dropTable.active,
-            dropTable.entries
-        );
+    function setCallbackGasLimit(uint32 _callbackGasLimit) external onlyOwner {
+        callbackGasLimit = _callbackGasLimit;
+    }
+
+    function setRequestConfirmations(uint16 _requestConfirmations) external onlyOwner {
+        requestConfirmations = _requestConfirmations;
+    }
+
+    function setNumWords(uint32 _numWords) external onlyOwner {
+        numWords = _numWords;
     }
 }

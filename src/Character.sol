@@ -13,7 +13,7 @@ contract Character is ERC721, Ownable, ICharacter {
     mapping(uint256 => Types.Stats) public characterStats;
     mapping(uint256 => Types.CharacterState) public characterStates;
     mapping(uint256 => CharacterWallet) public characterWallets;
-    
+
     uint256 private _nextTokenId;
     IEquipment private immutable equipmentContract;
 
@@ -23,28 +23,24 @@ contract Character is ERC721, Ownable, ICharacter {
     event StatsUpdated(uint256 indexed tokenId, Types.Stats stats);
     event StateUpdated(uint256 indexed tokenId, Types.CharacterState state);
 
-    constructor(address _equipmentContract) ERC721("DnD Character", "DNDC") Ownable(msg.sender) {
+    constructor(address _equipmentContract) ERC721("DnD Character", "DNDC") {
+        _transferOwnership(msg.sender);
         equipmentContract = IEquipment(_equipmentContract);
     }
 
-    function getCharacter(uint256 tokenId) external view returns (
-        Types.Stats memory stats,
-        Types.EquipmentSlots memory equipment,
-        Types.CharacterState memory state
-    ) {
+    function getCharacter(uint256 tokenId)
+        external
+        view
+        returns (Types.Stats memory stats, Types.EquipmentSlots memory equipment, Types.CharacterState memory state)
+    {
         require(_exists(tokenId), "Character does not exist");
-        return (
-            characterStats[tokenId],
-            characterWallets[tokenId].getEquippedItems(),
-            characterStates[tokenId]
-        );
+        return (characterStats[tokenId], characterWallets[tokenId].getEquippedItems(), characterStates[tokenId]);
     }
 
-    function mintCharacter(
-        address to,
-        Types.Stats memory initialStats,
-        Types.Alignment alignment
-    ) external returns (uint256) {
+    function mintCharacter(address to, Types.Stats memory initialStats, Types.Alignment alignment)
+        external
+        returns (uint256)
+    {
         uint256 tokenId = _nextTokenId++;
         _safeMint(to, tokenId);
 
@@ -52,12 +48,7 @@ contract Character is ERC721, Ownable, ICharacter {
         characterStats[tokenId] = initialStats;
 
         // Create character wallet
-        CharacterWallet wallet = new CharacterWallet(
-            address(equipmentContract),
-            tokenId,
-            address(this),
-            to
-        );
+        CharacterWallet wallet = new CharacterWallet(address(equipmentContract), tokenId, address(this));
         characterWallets[tokenId] = wallet;
 
         // Initialize character state
@@ -76,7 +67,7 @@ contract Character is ERC721, Ownable, ICharacter {
     function equip(uint256 tokenId, uint256 weaponId, uint256 armorId) external {
         require(_ownerOf(tokenId) == msg.sender, "Not character owner");
         require(_exists(tokenId), "Character does not exist");
-        
+
         CharacterWallet wallet = characterWallets[tokenId];
         wallet.equip(weaponId, armorId);
 
@@ -86,7 +77,7 @@ contract Character is ERC721, Ownable, ICharacter {
     function unequip(uint256 tokenId, bool weapon, bool armor) external {
         require(_ownerOf(tokenId) == msg.sender, "Not character owner");
         require(_exists(tokenId), "Character does not exist");
-        
+
         CharacterWallet wallet = characterWallets[tokenId];
         wallet.unequip(weapon, armor);
     }
@@ -103,20 +94,18 @@ contract Character is ERC721, Ownable, ICharacter {
         emit StateUpdated(tokenId, newState);
     }
 
-    function _exists(uint256 tokenId) internal view returns (bool) {
+    function _exists(uint256 tokenId) internal view virtual override returns (bool) {
         return _ownerOf(tokenId) != address(0);
     }
 
-    function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
-        address from = _ownerOf(tokenId);
-        address previousOwner = super._update(to, tokenId, auth);
+    function _transfer(address from, address to, uint256 tokenId) internal virtual override {
+        super._transfer(from, to, tokenId);
 
         // Transfer wallet ownership when character is transferred
-        if (from != address(0) && to != address(0)) {  // Skip mint and burn
+        if (from != address(0) && to != address(0)) {
+            // Skip mint and burn
             CharacterWallet wallet = characterWallets[tokenId];
             wallet.transferOwnership(to);
         }
-
-        return previousOwner;
     }
 }

@@ -2,160 +2,115 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import "./GameToken.sol";
-import "./Equipment.sol";
+import "./interfaces/IGameToken.sol";
 
-contract Marketplace is Ownable, ERC1155Holder {
-    GameToken public gameToken;
-    Equipment public equipment;
-
-    // Fee configuration
-    uint256 public feePercentage = 500; // 5% (base 10000)
+contract Marketplace is Ownable, ReentrancyGuard, ERC1155Holder {
+    IGameToken public immutable gameToken;
+    IERC1155 public immutable equipment;
     address public feeCollector;
+    uint256 public constant FEE_DENOMINATOR = 10_000;
+    uint256 public listingFee = 100; // 1% fee
 
-    // Listing structure
     struct Listing {
         address seller;
-        uint256 equipmentId;
+        uint256 price;
         uint256 amount;
-        uint256 pricePerUnit;
-        bool isActive;
+        bool active;
     }
 
-    // Mapping from listing ID to listing data
-    mapping(uint256 => Listing) public listings;
+    // equipmentId => listingId => Listing
+    mapping(uint256 => mapping(uint256 => Listing)) public listings;
+    mapping(uint256 => uint256) public nextListingId;
 
-    // Counter for creating new listings
-    uint256 private _nextListingId = 1;
-
-    // Events
-    event ListingCreated(
-        uint256 indexed listingId,
-        address indexed seller,
-        uint256 indexed equipmentId,
-        uint256 amount,
-        uint256 pricePerUnit
+    event ItemListed(
+        uint256 indexed equipmentId, uint256 indexed listingId, address indexed seller, uint256 price, uint256 amount
     );
-    event ListingCancelled(uint256 indexed listingId);
-    event ListingPurchased(
-        uint256 indexed listingId,
-        address indexed buyer,
-        uint256 indexed equipmentId,
-        uint256 amount,
-        uint256 totalPrice
+    event ItemPurchased(
+        uint256 indexed equipmentId, uint256 indexed listingId, address indexed buyer, uint256 price, uint256 amount
     );
-    event FeeUpdated(uint256 oldFee, uint256 newFee);
-    event FeeCollectorUpdated(address oldCollector, address newCollector);
+    event ListingCancelled(uint256 indexed equipmentId, uint256 indexed listingId);
+    event ListingFeeUpdated(uint256 newFee);
+    event FeeCollectorUpdated(address newCollector);
 
-    constructor(address _gameToken, address _equipment, address _feeCollector) Ownable(msg.sender) {
-        gameToken = GameToken(_gameToken);
-        equipment = Equipment(_equipment);
+    constructor(address _gameToken, address _equipment, address _feeCollector) {
+        _transferOwnership(msg.sender);
+        gameToken = IGameToken(_gameToken);
+        equipment = IERC1155(_equipment);
         feeCollector = _feeCollector;
     }
 
-    /**
-     * @dev Create a new listing
-     * @param equipmentId Equipment type ID
-     * @param amount Amount of equipment to sell
-     * @param pricePerUnit Price per unit in game tokens
-     */
-    function createListing(uint256 equipmentId, uint256 amount, uint256 pricePerUnit) public returns (uint256) {
-        require(amount > 0, "Amount must be positive");
-        require(pricePerUnit > 0, "Price must be positive");
+    function listItem(uint256 equipmentId, uint256 price, uint256 amount) external nonReentrant {
+        require(amount > 0, "Amount must be greater than 0");
+        require(price > 0, "Price must be greater than 0");
         require(equipment.balanceOf(msg.sender, equipmentId) >= amount, "Insufficient equipment balance");
 
-        uint256 listingId = _nextListingId++;
+        uint256 listingId = nextListingId[equipmentId]++;
+        listings[equipmentId][listingId] = Listing({ seller: msg.sender, price: price, amount: amount, active: true });
 
-        listings[listingId] = Listing({
-            seller: msg.sender,
-            equipmentId: equipmentId,
-            amount: amount,
-            pricePerUnit: pricePerUnit,
-            isActive: true
-        });
-
-        // Transfer equipment to marketplace contract
         equipment.safeTransferFrom(msg.sender, address(this), equipmentId, amount, "");
 
-        emit ListingCreated(listingId, msg.sender, equipmentId, amount, pricePerUnit);
-        return listingId;
+        emit ItemListed(equipmentId, listingId, msg.sender, price, amount);
     }
 
-    /**
-     * @dev Cancel an active listing
-     * @param listingId Listing ID
-     */
-    function cancelListing(uint256 listingId) public {
-        Listing storage listing = listings[listingId];
-        require(listing.isActive, "Listing not active");
-        require(listing.seller == msg.sender, "Not the seller");
-
-        listing.isActive = false;
-
-        // Return equipment to seller
-        equipment.safeTransferFrom(address(this), msg.sender, listing.equipmentId, listing.amount, "");
-
-        emit ListingCancelled(listingId);
-    }
-
-    /**
-     * @dev Purchase items from a listing
-     * @param listingId Listing ID
-     * @param amount Amount to purchase
-     */
-    function purchase(uint256 listingId, uint256 amount) public {
-        Listing storage listing = listings[listingId];
-        require(listing.isActive, "Listing not active");
+    function purchaseItem(uint256 equipmentId, uint256 listingId, uint256 amount) external nonReentrant {
+        Listing storage listing = listings[equipmentId][listingId];
+        require(listing.active, "Listing is not active");
         require(amount > 0 && amount <= listing.amount, "Invalid amount");
 
-        uint256 totalPrice = amount * listing.pricePerUnit;
-        uint256 feeAmount = (totalPrice * feePercentage) / 10_000;
-        uint256 sellerAmount = totalPrice - feeAmount;
+        uint256 totalPrice = listing.price * amount;
+        uint256 fee = (totalPrice * listingFee) / FEE_DENOMINATOR;
+        uint256 sellerAmount = totalPrice - fee;
 
-        // Transfer payment from buyer to seller and fee collector
+        // Transfer payment
         gameToken.transferFrom(msg.sender, listing.seller, sellerAmount);
-        if (feeAmount > 0) {
-            gameToken.transferFrom(msg.sender, feeCollector, feeAmount);
+        if (fee > 0) {
+            gameToken.transferFrom(msg.sender, feeCollector, fee);
         }
 
-        // Transfer equipment to buyer
-        equipment.safeTransferFrom(address(this), msg.sender, listing.equipmentId, amount, "");
+        // Transfer equipment
+        equipment.safeTransferFrom(address(this), msg.sender, equipmentId, amount, "");
 
-        // Update or close listing
+        // Update listing
         listing.amount -= amount;
         if (listing.amount == 0) {
-            listing.isActive = false;
+            listing.active = false;
         }
 
-        emit ListingPurchased(listingId, msg.sender, listing.equipmentId, amount, totalPrice);
+        emit ItemPurchased(equipmentId, listingId, msg.sender, listing.price, amount);
     }
 
-    /**
-     * @dev Update marketplace fee percentage
-     * @param newFeePercentage New fee percentage (base 10000)
-     */
-    function setFeePercentage(uint256 newFeePercentage) public onlyOwner {
-        require(newFeePercentage <= 1000, "Fee too high"); // Max 10%
-        emit FeeUpdated(feePercentage, newFeePercentage);
-        feePercentage = newFeePercentage;
+    function cancelListing(uint256 equipmentId, uint256 listingId) external nonReentrant {
+        Listing storage listing = listings[equipmentId][listingId];
+        require(listing.active, "Listing is not active");
+        require(listing.seller == msg.sender, "Not the seller");
+
+        listing.active = false;
+        equipment.safeTransferFrom(address(this), msg.sender, equipmentId, listing.amount, "");
+
+        emit ListingCancelled(equipmentId, listingId);
     }
 
-    /**
-     * @dev Update fee collector address
-     * @param newFeeCollector New fee collector address
-     */
-    function setFeeCollector(address newFeeCollector) public onlyOwner {
-        require(newFeeCollector != address(0), "Invalid address");
-        emit FeeCollectorUpdated(feeCollector, newFeeCollector);
-        feeCollector = newFeeCollector;
+    function updateListingFee(uint256 newFee) external onlyOwner {
+        require(newFee <= 1000, "Fee too high"); // Max 10%
+        listingFee = newFee;
+        emit ListingFeeUpdated(newFee);
     }
 
-    /**
-     * @dev Get listing information
-     * @param listingId Listing ID
-     */
-    function getListing(uint256 listingId) public view returns (Listing memory) {
-        return listings[listingId];
+    function updateFeeCollector(address newCollector) external onlyOwner {
+        require(newCollector != address(0), "Invalid address");
+        feeCollector = newCollector;
+        emit FeeCollectorUpdated(newCollector);
+    }
+
+    function getListing(uint256 equipmentId, uint256 listingId)
+        external
+        view
+        returns (address seller, uint256 price, uint256 amount, bool active)
+    {
+        Listing storage listing = listings[equipmentId][listingId];
+        return (listing.seller, listing.price, listing.amount, listing.active);
     }
 }

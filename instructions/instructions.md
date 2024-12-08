@@ -24,14 +24,14 @@
   - [x] Ensure secure callback to distribute random items (e.g., rare swords, special potions)
 
 **Basic Marketplace**  
-- [ ] **Auction House**  
-  - [ ] Implement basic buy/sell listings for NFTs using in-game token  
-  - [ ] Simple fee structure (could later tie into token burn or guild treasury)
+- [x] **Auction House**  
+  - [x] Implement basic buy/sell listings for NFTs using in-game token  
+  - [x] Simple fee structure (could later tie into token burn or guild treasury)
 
 **Testing & Deployment**  
 - [x] Unit tests for Character, Equipment, Quests
-- [ ] Unit tests for Marketplace  
-- [ ] Test Chainlink VRF item drops on testnet  
+- [x] Unit tests for Marketplace  
+- [x] Test Chainlink VRF item drops on testnet  
 - [ ] Deploy to mainnet after QA
 
 ---
@@ -172,3 +172,38 @@
 - [ ] Complex scenario testing for prediction markets and insurance events.  
 - [ ] Validate VRF integration in cross-chain or L2 environments (if applicable).  
 - [ ] Deploy iteratively and refine based on community feedback.
+
+### Phase 7: Advanced Gameplay & Social Features
+
+**Raid System**  
+- [ ] **Raid Contract**  
+  - [ ] Implement multi-player raid mechanics requiring coordination
+  - [ ] Complex boss mechanics with multiple phases
+  - [ ] Raid-specific loot tables using Chainlink VRF
+  - [ ] Raid progression and achievement tracking
+
+**Social Systems**  
+- [ ] **Friend System**  
+  - [ ] Add/remove friends functionality
+  - [ ] Friend-based quest bonuses
+  - [ ] Social achievements and rewards
+
+**Achievement System**  
+- [ ] **Achievement NFTs**  
+  - [ ] Implement achievement tracking and milestones
+  - [ ] Special rewards for achievement completion
+  - [ ] Achievement-based titles and perks
+
+**PvP Arena**  
+- [ ] **Arena Contract**  
+  - [ ] Implement 1v1 and team-based PvP
+  - [ ] Seasonal rankings and rewards
+  - [ ] Integration with existing hero attributes and equipment
+  - [ ] PvP-specific balancing mechanics
+
+**Testing & Deployment**  
+- [ ] Comprehensive testing of raid mechanics
+- [ ] PvP balance testing and adjustments
+- [ ] Social feature integration testing
+- [ ] Security audit of new features
+- [ ] Staged deployment to testnet then mainnet

@@ -25,26 +25,17 @@ contract DeployScript is Script {
         // Deploy and set up ItemDrop contract
         ItemDrop itemDrop = new ItemDrop(
             vrfCoordinator,
-            address(equipment),
+            vrfSubscriptionId,
             vrfKeyHash,
-            vrfSubscriptionId
+            200_000, // callbackGasLimit
+            3, // requestConfirmations
+            1 // numWords
         );
-
-        // Set up contract relationships
-        equipment.setCharacterContract(address(character));
+        itemDrop.initialize(address(equipment));
 
         // Deploy and initialize Quest contract
         Quest quest = new Quest(address(character));
         quest.initialize(address(gameToken));
-        gameToken.setQuestContract(address(quest), true);
-
-        // Set up initial drop tables
-        ItemDrop.DropEntry[] memory commonDrops = new ItemDrop.DropEntry[](3);
-        commonDrops[0] = ItemDrop.DropEntry({equipmentId: 1, weight: 700}); // Common item: 70%
-        commonDrops[1] = ItemDrop.DropEntry({equipmentId: 2, weight: 250}); // Uncommon item: 25%
-        commonDrops[2] = ItemDrop.DropEntry({equipmentId: 3, weight: 50});  // Rare item: 5%
-        
-        itemDrop.createDropTable(1, "Common Drop Table", commonDrops);
 
         vm.stopBroadcast();
 

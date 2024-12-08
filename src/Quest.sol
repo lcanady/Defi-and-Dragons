@@ -26,7 +26,8 @@ contract Quest is Ownable {
     event QuestStarted(uint256 indexed characterId, uint256 indexed questId);
     event QuestCompleted(uint256 indexed characterId, uint256 indexed questId, uint256 reward);
 
-    constructor(address characterContract) Ownable(msg.sender) {
+    constructor(address characterContract) {
+        _transferOwnership(msg.sender);
         character = ICharacter(characterContract);
     }
 
