@@ -2,161 +2,103 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./GameToken.sol";
-import "./Equipment.sol";
-import "./Character.sol";
+import "./interfaces/Types.sol";
+import "./interfaces/ICharacter.sol";
+import "./interfaces/IGameToken.sol";
 
 contract Quest is Ownable {
-    GameToken public gameToken;
-    Equipment public equipment;
-    Character public character;
+    ICharacter public immutable character;
+    IGameToken public gameToken;
 
-    // Quest structure
-    struct QuestData {
-        string name;
-        uint256 requiredLevel;
-        uint256 rewardGold;
-        uint256[] rewardEquipmentIds;
-        uint256[] rewardEquipmentAmounts;
-        uint256 cooldownPeriod;
-        bool isActive;
+    struct QuestTemplate {
+        uint8 requiredLevel;
+        uint8 requiredStrength;
+        uint8 requiredAgility;
+        uint8 requiredMagic;
+        uint256 rewardAmount;
+        uint256 cooldown;
     }
 
-    // Mapping from quest ID to quest data
-    mapping(uint256 => QuestData) public quests;
-    
-    // Mapping from character ID to quest completion timestamps
-    mapping(uint256 => mapping(uint256 => uint256)) public lastQuestCompletion;
-    
-    // Counter for creating new quests
-    uint256 private _nextQuestId = 1;
+    mapping(uint256 => QuestTemplate) public questTemplates;
+    mapping(uint256 => mapping(uint256 => uint256)) public lastQuestCompletionTime;
+    mapping(uint256 => bool) public activeQuests;
 
-    // Events
-    event QuestCreated(uint256 indexed questId, string name, uint256 requiredLevel);
-    event QuestCompleted(uint256 indexed questId, uint256 indexed characterId, address indexed player);
-    event QuestStatusUpdated(uint256 indexed questId, bool isActive);
+    event QuestStarted(uint256 indexed characterId, uint256 indexed questId);
+    event QuestCompleted(uint256 indexed characterId, uint256 indexed questId, uint256 reward);
 
-    constructor(
-        address _gameToken,
-        address _equipment,
-        address _character
-    ) Ownable(msg.sender) {
-        gameToken = GameToken(_gameToken);
-        equipment = Equipment(_equipment);
-        character = Character(_character);
+    constructor(address characterContract) Ownable(msg.sender) {
+        character = ICharacter(characterContract);
     }
 
-    /**
-     * @dev Create a new quest
-     * @param name Quest name
-     * @param requiredLevel Required character level
-     * @param rewardGold Gold reward amount
-     * @param rewardEquipmentIds Array of equipment IDs for rewards
-     * @param rewardEquipmentAmounts Array of equipment amounts for rewards
-     * @param cooldownPeriod Time required between completions
-     */
-    function createQuest(
-        string memory name,
-        uint256 requiredLevel,
-        uint256 rewardGold,
-        uint256[] memory rewardEquipmentIds,
-        uint256[] memory rewardEquipmentAmounts,
-        uint256 cooldownPeriod
-    ) public onlyOwner returns (uint256) {
-        require(rewardEquipmentIds.length == rewardEquipmentAmounts.length, "Reward arrays must match");
-        
-        uint256 questId = _nextQuestId++;
-        
-        quests[questId] = QuestData({
-            name: name,
-            requiredLevel: requiredLevel,
-            rewardGold: rewardGold,
-            rewardEquipmentIds: rewardEquipmentIds,
-            rewardEquipmentAmounts: rewardEquipmentAmounts,
-            cooldownPeriod: cooldownPeriod,
-            isActive: true
-        });
-
-        emit QuestCreated(questId, name, requiredLevel);
-        return questId;
+    function initialize(address _gameToken) external onlyOwner {
+        require(address(gameToken) == address(0), "Already initialized");
+        gameToken = IGameToken(_gameToken);
     }
 
-    /**
-     * @dev Complete a quest with a character
-     * @param questId Quest ID
-     * @param characterId Character ID
-     */
-    function completeQuest(uint256 questId, uint256 characterId) public {
-        QuestData memory quest = quests[questId];
-        require(quest.isActive, "Quest is not active");
+    modifier onlyCharacterOwner(uint256 characterId) {
         require(character.ownerOf(characterId) == msg.sender, "Not character owner");
+        _;
+    }
 
-        // Get character stats
-        (,Character.Stats memory stats,) = character.getCharacter(characterId);
-        require(stats.level >= quest.requiredLevel, "Character level too low");
-
-        // Check cooldown
-        require(
-            block.timestamp >= lastQuestCompletion[characterId][questId] + quest.cooldownPeriod,
-            "Quest on cooldown"
+    function createQuest(
+        uint8 requiredLevel,
+        uint8 requiredStrength,
+        uint8 requiredAgility,
+        uint8 requiredMagic,
+        uint256 rewardAmount,
+        uint256 cooldown
+    ) external onlyOwner returns (uint256 questId) {
+        questId = uint256(
+            keccak256(
+                abi.encodePacked(
+                    requiredLevel,
+                    requiredStrength,
+                    requiredAgility,
+                    requiredMagic,
+                    rewardAmount,
+                    cooldown,
+                    block.timestamp
+                )
+            )
         );
 
-        // Update completion timestamp
-        lastQuestCompletion[characterId][questId] = block.timestamp;
+        questTemplates[questId] = QuestTemplate({
+            requiredLevel: requiredLevel,
+            requiredStrength: requiredStrength,
+            requiredAgility: requiredAgility,
+            requiredMagic: requiredMagic,
+            rewardAmount: rewardAmount,
+            cooldown: cooldown
+        });
+    }
 
-        // Distribute rewards
-        if (quest.rewardGold > 0) {
-            gameToken.mintQuestReward(msg.sender, quest.rewardGold);
+    function startQuest(uint256 characterId, uint256 questId) external onlyCharacterOwner(characterId) {
+        require(!activeQuests[questId], "Quest already active");
+        require(questTemplates[questId].requiredLevel > 0, "Quest does not exist");
+
+        uint256 lastCompletion = lastQuestCompletionTime[characterId][questId];
+        if (lastCompletion > 0) {
+            require(block.timestamp >= lastCompletion + questTemplates[questId].cooldown, "Quest on cooldown");
         }
 
-        if (quest.rewardEquipmentIds.length > 0) {
-            equipment.mintBatch(
-                msg.sender,
-                quest.rewardEquipmentIds,
-                quest.rewardEquipmentAmounts,
-                ""
-            );
-        }
+        (Types.Stats memory stats,,) = character.getCharacter(characterId);
+        require(stats.strength >= questTemplates[questId].requiredStrength, "Insufficient strength");
+        require(stats.agility >= questTemplates[questId].requiredAgility, "Insufficient agility");
+        require(stats.magic >= questTemplates[questId].requiredMagic, "Insufficient magic");
 
-        emit QuestCompleted(questId, characterId, msg.sender);
+        activeQuests[questId] = true;
+        emit QuestStarted(characterId, questId);
     }
 
-    /**
-     * @dev Set quest active status
-     * @param questId Quest ID
-     * @param isActive New active status
-     */
-    function setQuestStatus(uint256 questId, bool isActive) public onlyOwner {
-        require(questId < _nextQuestId, "Quest does not exist");
-        quests[questId].isActive = isActive;
-        emit QuestStatusUpdated(questId, isActive);
+    function completeQuest(uint256 characterId, uint256 questId) external onlyCharacterOwner(characterId) {
+        require(activeQuests[questId], "Quest not active");
+
+        activeQuests[questId] = false;
+        lastQuestCompletionTime[characterId][questId] = block.timestamp;
+
+        uint256 reward = questTemplates[questId].rewardAmount;
+        gameToken.mint(msg.sender, reward);
+
+        emit QuestCompleted(characterId, questId, reward);
     }
-
-    /**
-     * @dev Get quest data
-     * @param questId Quest ID
-     */
-    function getQuest(uint256 questId) public view returns (QuestData memory) {
-        require(questId < _nextQuestId, "Quest does not exist");
-        return quests[questId];
-    }
-
-    /**
-     * @dev Check if a character can complete a quest
-     * @param questId Quest ID
-     * @param characterId Character ID
-     */
-    function canCompleteQuest(uint256 questId, uint256 characterId) public view returns (bool) {
-        QuestData memory quest = quests[questId];
-        if (!quest.isActive) return false;
-
-        (,Character.Stats memory stats,) = character.getCharacter(characterId);
-        if (stats.level < quest.requiredLevel) return false;
-
-        if (block.timestamp < lastQuestCompletion[characterId][questId] + quest.cooldownPeriod) {
-            return false;
-        }
-
-        return true;
-    }
-} 
+}

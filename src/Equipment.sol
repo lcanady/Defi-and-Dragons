@@ -3,133 +3,181 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import "./interfaces/IEquipment.sol";
+import "./interfaces/ICharacter.sol";
+import "./interfaces/Types.sol";
 
-contract Equipment is ERC1155, Ownable {
-    using Strings for uint256;
+contract Equipment is ERC1155, Ownable, IEquipment {
+    ICharacter public character;
 
-    // Equipment types
-    enum EquipmentType { WEAPON, ARMOR, SHIELD, AMULET, RING }
-
-    // Equipment attributes
-    struct EquipmentAttributes {
-        string name;
-        EquipmentType equipmentType;
-        uint8 level;
-        uint8 damage;        // For weapons
-        uint8 defense;       // For armor/shield
-        uint8 magicBonus;    // For magical items
-        bool isEquipped;
+    // Override balanceOf from both ERC1155 and IEquipment
+    function balanceOf(address account, uint256 id)
+        public
+        view
+        virtual
+        override(ERC1155, IEquipment)
+        returns (uint256)
+    {
+        return super.balanceOf(account, id);
     }
 
-    // Mapping from token ID to equipment attributes
-    mapping(uint256 => EquipmentAttributes) public equipmentAttributes;
-    
-    // Counter for creating new equipment types
-    uint256 private _nextEquipmentId = 1;
+    // Mapping from equipment ID to its stats
+    mapping(uint256 => Types.EquipmentStats) public equipmentStats;
+
+    // Mapping from equipment ID to its special abilities
+    mapping(uint256 => Types.SpecialAbility[]) public equipmentAbilities;
+
+    // Mapping to track ability cooldowns (characterId => equipmentId => abilityIndex => lastUse)
+    mapping(uint256 => mapping(uint256 => mapping(uint256 => uint256))) public abilityCooldowns;
 
     // Events
-    event EquipmentCreated(uint256 indexed tokenId, string name, EquipmentType equipmentType);
-    event EquipmentMinted(address indexed to, uint256 indexed tokenId, uint256 amount);
+    event EquipmentCreated(uint256 indexed equipmentId, string name, Types.EquipmentStats stats);
+    event SpecialAbilityAdded(uint256 indexed equipmentId, string abilityName);
+    event SpecialAbilityTriggered(uint256 indexed characterId, uint256 indexed equipmentId, string abilityName);
 
-    constructor() ERC1155("") Ownable(msg.sender) {}
+    constructor() ERC1155("https://game.example/api/item/{id}.json") Ownable(msg.sender) { }
 
-    /**
-     * @dev Create a new equipment type
-     * @param name Equipment name
-     * @param equipmentType Type of equipment
-     * @param level Required level to use
-     * @param damage Damage value (for weapons)
-     * @param defense Defense value (for armor/shield)
-     * @param magicBonus Magic bonus value
-     */
-    function createEquipmentType(
+    function setCharacterContract(address characterContract) external onlyOwner {
+        character = ICharacter(characterContract);
+    }
+
+    function createEquipment(
+        uint256 equipmentId,
         string memory name,
-        EquipmentType equipmentType,
-        uint8 level,
-        uint8 damage,
-        uint8 defense,
+        string memory description,
+        uint8 strengthBonus,
+        uint8 agilityBonus,
         uint8 magicBonus
-    ) public onlyOwner returns (uint256) {
-        uint256 newEquipmentId = _nextEquipmentId++;
-        
-        equipmentAttributes[newEquipmentId] = EquipmentAttributes({
-            name: name,
-            equipmentType: equipmentType,
-            level: level,
-            damage: damage,
-            defense: defense,
+    ) external onlyOwner {
+        require(!equipmentStats[equipmentId].isActive, "Equipment ID already exists");
+
+        equipmentStats[equipmentId] = Types.EquipmentStats({
+            strengthBonus: strengthBonus,
+            agilityBonus: agilityBonus,
             magicBonus: magicBonus,
-            isEquipped: false
+            isActive: true,
+            name: name,
+            description: description
         });
 
-        emit EquipmentCreated(newEquipmentId, name, equipmentType);
-        return newEquipmentId;
+        emit EquipmentCreated(equipmentId, name, equipmentStats[equipmentId]);
     }
 
-    /**
-     * @dev Mint new equipment
-     * @param to Address to mint to
-     * @param id Equipment type ID
-     * @param amount Amount to mint
-     * @param data Additional data
-     */
-    function mint(
-        address to,
-        uint256 id,
-        uint256 amount,
-        bytes memory data
-    ) public onlyOwner {
-        require(id < _nextEquipmentId, "Equipment type does not exist");
+    function addSpecialAbility(
+        uint256 equipmentId,
+        string memory name,
+        string memory description,
+        Types.TriggerCondition triggerCondition,
+        uint256 triggerValue,
+        Types.EffectType effectType,
+        uint256 effectValue,
+        uint256 cooldown
+    ) external onlyOwner {
+        require(equipmentStats[equipmentId].isActive, "Equipment does not exist");
+
+        Types.SpecialAbility memory ability = Types.SpecialAbility({
+            name: name,
+            description: description,
+            triggerCondition: triggerCondition,
+            triggerValue: triggerValue,
+            effectType: effectType,
+            effectValue: effectValue,
+            cooldown: cooldown
+        });
+
+        equipmentAbilities[equipmentId].push(ability);
+        emit SpecialAbilityAdded(equipmentId, name);
+    }
+
+    function getEquipmentStats(uint256 equipmentId) external view override returns (Types.EquipmentStats memory) {
+        require(equipmentStats[equipmentId].isActive, "Equipment does not exist");
+        return equipmentStats[equipmentId];
+    }
+
+    function getSpecialAbility(uint256 equipmentId, uint256 abilityIndex)
+        external
+        view
+        override
+        returns (Types.SpecialAbility memory)
+    {
+        require(equipmentStats[equipmentId].isActive, "Equipment does not exist");
+        require(abilityIndex < equipmentAbilities[equipmentId].length, "Invalid ability index");
+        return equipmentAbilities[equipmentId][abilityIndex];
+    }
+
+    function getSpecialAbilities(uint256 equipmentId) external view override returns (Types.SpecialAbility[] memory) {
+        require(equipmentStats[equipmentId].isActive, "Equipment does not exist");
+        return equipmentAbilities[equipmentId];
+    }
+
+    function checkTriggerCondition(uint256 characterId, uint256 equipmentId, uint256 abilityIndex, uint256 currentRound)
+        external
+        view
+        override
+        returns (bool)
+    {
+        require(equipmentStats[equipmentId].isActive, "Equipment does not exist");
+        Types.SpecialAbility memory ability = equipmentAbilities[equipmentId][abilityIndex];
+
+        // Check cooldown
+        if (currentRound - abilityCooldowns[characterId][equipmentId][abilityIndex] < ability.cooldown) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function calculateEquipmentBonus(uint256 characterId)
+        external
+        view
+        override
+        returns (uint8 strengthBonus, uint8 agilityBonus, uint8 magicBonus)
+    {
+        (, Types.EquipmentSlots memory equipped,) = character.getCharacter(characterId);
+
+        // Add weapon bonuses
+        if (equipped.weaponId != 0) {
+            Types.EquipmentStats memory weapon = equipmentStats[equipped.weaponId];
+            strengthBonus += weapon.strengthBonus;
+            agilityBonus += weapon.agilityBonus;
+            magicBonus += weapon.magicBonus;
+        }
+
+        // Add armor bonuses
+        if (equipped.armorId != 0) {
+            Types.EquipmentStats memory armor = equipmentStats[equipped.armorId];
+            strengthBonus += armor.strengthBonus;
+            agilityBonus += armor.agilityBonus;
+            magicBonus += armor.magicBonus;
+        }
+    }
+
+    function updateAbilityCooldown(uint256 characterId, uint256 equipmentId, uint256 abilityIndex, uint256 currentRound)
+        external
+        override
+    {
+        require(msg.sender == address(character), "Only Character contract can update cooldowns");
+        require(abilityIndex < equipmentAbilities[equipmentId].length, "Invalid ability index");
+
+        abilityCooldowns[characterId][equipmentId][abilityIndex] = currentRound;
+    }
+
+    function mint(address to, uint256 id, uint256 amount, bytes memory data) public onlyOwner {
+        require(equipmentStats[id].isActive, "Equipment does not exist");
         _mint(to, id, amount, data);
-        emit EquipmentMinted(to, id, amount);
     }
 
-    /**
-     * @dev Batch mint new equipment
-     * @param to Address to mint to
-     * @param ids Array of equipment type IDs
-     * @param amounts Array of amounts to mint
-     * @param data Additional data
-     */
-    function mintBatch(
-        address to,
-        uint256[] memory ids,
-        uint256[] memory amounts,
-        bytes memory data
-    ) public onlyOwner {
+    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)
+        public
+        onlyOwner
+    {
         for (uint256 i = 0; i < ids.length; i++) {
-            require(ids[i] < _nextEquipmentId, "Equipment type does not exist");
+            require(equipmentStats[ids[i]].isActive, "Equipment does not exist");
         }
         _mintBatch(to, ids, amounts, data);
     }
 
-    /**
-     * @dev Get equipment attributes
-     * @param id Equipment type ID
-     */
-    function getEquipmentAttributes(uint256 id) public view returns (EquipmentAttributes memory) {
-        require(id < _nextEquipmentId, "Equipment type does not exist");
-        return equipmentAttributes[id];
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
-
-    /**
-     * @dev Set equipment as equipped/unequipped
-     * @param id Equipment type ID
-     * @param equipped Equipment status
-     */
-    function setEquipped(uint256 id, bool equipped) public {
-        require(id < _nextEquipmentId, "Equipment type does not exist");
-        require(balanceOf(msg.sender, id) > 0, "Must own equipment to equip/unequip");
-        equipmentAttributes[id].isEquipped = equipped;
-    }
-
-    /**
-     * @dev URI for token metadata
-     * @param tokenId Token ID
-     */
-    function uri(uint256 tokenId) public view virtual override returns (string memory) {
-        require(tokenId < _nextEquipmentId, "Equipment type does not exist");
-        return string(abi.encodePacked("https://game.example.com/api/equipment/", tokenId.toString()));
-    }
-} 
+}

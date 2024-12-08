@@ -1,37 +1,38 @@
 ### Phase 1: MVP (Core Game Mechanics)
 
 **Character & Items**  
-- [ ] **Character NFT (ERC-721AC)**  
-  - [ ] Implement hero minting (summoning heroes).  
-  - [ ] Store base stats, class, attributes, and equipment slots.
+- [x] **Character NFT (ERC-721AC)**  
+  - [x] Implement hero minting (summoning heroes)  
+  - [x] Store base stats, class, attributes, and equipment slots
 
-- [ ] **Equipment NFTs (ERC-1155 or ERC-721AC)**  
-  - [ ] Mint basic equipment (weapons/armor).  
-  - [ ] Integrate equip/unequip logic referencing character slots.
+- [x] **Equipment NFTs (ERC-1155 or ERC-721AC)**  
+  - [x] Mint basic equipment (weapons/armor)  
+  - [x] Integrate equip/unequip logic referencing character slots
 
 **Economy & Quests**  
-- [ ] **In-Game Currency (ERC-20)**  
-  - [ ] Deploy token for rewards and marketplace trading.  
-  - [ ] Mint tokens as quest rewards and integrate token sinks (fees, crafting).
+- [x] **In-Game Currency (ERC-20)**  
+  - [x] Deploy token for rewards and marketplace trading  
+  - [x] Mint tokens as quest rewards and integrate token sinks (fees, crafting)
 
-- [ ] **Quest Contract**  
-  - [ ] Implement start/complete quest functions.  
-  - [ ] Reward in-game tokens and items.
+- [x] **Quest Contract**  
+  - [x] Implement start/complete quest functions  
+  - [x] Reward in-game tokens and items
 
 - [ ] **Item Drop / Reward Contract with Chainlink VRF**  
-  - [ ] Integrate Chainlink VRF for unbiased random item drops.  
-  - [ ] Configure subscription or request/response pattern for randomness requests.  
-  - [ ] Ensure secure callback to distribute random items (e.g., rare swords, special potions).
+  - [ ] Integrate Chainlink VRF for unbiased random item drops  
+  - [ ] Configure subscription or request/response pattern for randomness requests  
+  - [ ] Ensure secure callback to distribute random items (e.g., rare swords, special potions)
 
 **Basic Marketplace**  
 - [ ] **Auction House**  
-  - [ ] Implement basic buy/sell listings for NFTs using in-game token.  
-  - [ ] Simple fee structure (could later tie into token burn or guild treasury).
+  - [ ] Implement basic buy/sell listings for NFTs using in-game token  
+  - [ ] Simple fee structure (could later tie into token burn or guild treasury)
 
 **Testing & Deployment**  
-- [ ] Unit tests for Character, Equipment, Quests, Marketplace.  
-- [ ] Test Chainlink VRF item drops on testnet.  
-- [ ] Deploy to mainnet after QA.
+- [x] Unit tests for Character, Equipment, Quests
+- [ ] Unit tests for Marketplace  
+- [ ] Test Chainlink VRF item drops on testnet  
+- [ ] Deploy to mainnet after QA
 
 ---
 

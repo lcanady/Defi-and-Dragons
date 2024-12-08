@@ -25,7 +25,7 @@ contract Marketplace is Ownable, ERC1155Holder {
 
     // Mapping from listing ID to listing data
     mapping(uint256 => Listing) public listings;
-    
+
     // Counter for creating new listings
     uint256 private _nextListingId = 1;
 
@@ -48,11 +48,7 @@ contract Marketplace is Ownable, ERC1155Holder {
     event FeeUpdated(uint256 oldFee, uint256 newFee);
     event FeeCollectorUpdated(address oldCollector, address newCollector);
 
-    constructor(
-        address _gameToken,
-        address _equipment,
-        address _feeCollector
-    ) Ownable(msg.sender) {
+    constructor(address _gameToken, address _equipment, address _feeCollector) Ownable(msg.sender) {
         gameToken = GameToken(_gameToken);
         equipment = Equipment(_equipment);
         feeCollector = _feeCollector;
@@ -64,17 +60,10 @@ contract Marketplace is Ownable, ERC1155Holder {
      * @param amount Amount of equipment to sell
      * @param pricePerUnit Price per unit in game tokens
      */
-    function createListing(
-        uint256 equipmentId,
-        uint256 amount,
-        uint256 pricePerUnit
-    ) public returns (uint256) {
+    function createListing(uint256 equipmentId, uint256 amount, uint256 pricePerUnit) public returns (uint256) {
         require(amount > 0, "Amount must be positive");
         require(pricePerUnit > 0, "Price must be positive");
-        require(
-            equipment.balanceOf(msg.sender, equipmentId) >= amount,
-            "Insufficient equipment balance"
-        );
+        require(equipment.balanceOf(msg.sender, equipmentId) >= amount, "Insufficient equipment balance");
 
         uint256 listingId = _nextListingId++;
 
@@ -105,13 +94,7 @@ contract Marketplace is Ownable, ERC1155Holder {
         listing.isActive = false;
 
         // Return equipment to seller
-        equipment.safeTransferFrom(
-            address(this),
-            msg.sender,
-            listing.equipmentId,
-            listing.amount,
-            ""
-        );
+        equipment.safeTransferFrom(address(this), msg.sender, listing.equipmentId, listing.amount, "");
 
         emit ListingCancelled(listingId);
     }
@@ -127,7 +110,7 @@ contract Marketplace is Ownable, ERC1155Holder {
         require(amount > 0 && amount <= listing.amount, "Invalid amount");
 
         uint256 totalPrice = amount * listing.pricePerUnit;
-        uint256 feeAmount = (totalPrice * feePercentage) / 10000;
+        uint256 feeAmount = (totalPrice * feePercentage) / 10_000;
         uint256 sellerAmount = totalPrice - feeAmount;
 
         // Transfer payment from buyer to seller and fee collector
@@ -137,13 +120,7 @@ contract Marketplace is Ownable, ERC1155Holder {
         }
 
         // Transfer equipment to buyer
-        equipment.safeTransferFrom(
-            address(this),
-            msg.sender,
-            listing.equipmentId,
-            amount,
-            ""
-        );
+        equipment.safeTransferFrom(address(this), msg.sender, listing.equipmentId, amount, "");
 
         // Update or close listing
         listing.amount -= amount;
@@ -181,4 +158,4 @@ contract Marketplace is Ownable, ERC1155Holder {
     function getListing(uint256 listingId) public view returns (Listing memory) {
         return listings[listingId];
     }
-} 
+}

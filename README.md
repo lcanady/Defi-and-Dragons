@@ -5,28 +5,31 @@ A decentralized role-playing game built on Ethereum using Foundry.
 ## Overview
 
 This project implements a DnD-inspired on-chain game with the following features:
-- Character NFTs with stats and equipment slots
-- Equipment NFTs for weapons, armor, and accessories
-- In-game currency (GOLD token)
-- Quest system with rewards
-- Random item drops using Chainlink VRF
-- Marketplace for trading items
+- [x] Character NFTs with stats and equipment slots
+- [x] Equipment NFTs for weapons and armor
+- [x] In-game currency (GAME token)
+- [x] Quest system with rewards
+- [ ] Random item drops using Chainlink VRF (Coming soon)
+- [ ] Marketplace for trading items (Coming soon)
 
 ## Smart Contracts
 
-- `Character.sol`: ERC721 contract for character NFTs
-- `Equipment.sol`: ERC1155 contract for equipment NFTs
-- `GameToken.sol`: ERC20 contract for in-game currency
-- `Quest.sol`: Manages quests and rewards
-- `ItemDrop.sol`: Handles random item drops using Chainlink VRF
-- `Marketplace.sol`: Facilitates trading of equipment NFTs
+### Implemented:
+- [x] `Character.sol`: ERC721 contract for character NFTs
+- [x] `Equipment.sol`: ERC1155 contract for equipment NFTs
+- [x] `GameToken.sol`: ERC20 contract for in-game currency
+- [x] `Quest.sol`: Manages quests and rewards
+
+### Coming Soon:
+- [ ] `ItemDrop.sol`: Handles random item drops using Chainlink VRF
+- [ ] `Marketplace.sol`: Facilitates trading of equipment NFTs
 
 ## Prerequisites
 
-- [Foundry](https://book.getfoundry.sh/getting-started/installation.html)
-- [Node.js](https://nodejs.org/) (for development tools)
-- Ethereum wallet (e.g., MetaMask)
-- Chainlink VRF subscription (for random item drops)
+- [x] [Foundry](https://book.getfoundry.sh/getting-started/installation.html)
+- [x] [Node.js](https://nodejs.org/) (for development tools)
+- [ ] Ethereum wallet (e.g., MetaMask) - Required for deployment
+- [ ] Chainlink VRF subscription (for random item drops) - Coming soon
 
 ## Setup
 
@@ -50,9 +53,9 @@ SEPOLIA_RPC_URL=your_sepolia_rpc_url
 MAINNET_RPC_URL=your_mainnet_rpc_url
 ETHERSCAN_API_KEY=your_etherscan_api_key
 PRIVATE_KEY=your_deployer_private_key
-VRF_COORDINATOR=chainlink_vrf_coordinator_address
-VRF_SUBSCRIPTION_ID=your_vrf_subscription_id
-VRF_KEY_HASH=your_vrf_key_hash
+VRF_COORDINATOR=chainlink_vrf_coordinator_address    # Coming soon
+VRF_SUBSCRIPTION_ID=your_vrf_subscription_id        # Coming soon
+VRF_KEY_HASH=your_vrf_key_hash                     # Coming soon
 ```
 
 4. Compile contracts:
@@ -101,11 +104,14 @@ forge test -vvv
 
 ## Security
 
-- All contracts use OpenZeppelin's battle-tested implementations
-- Access control implemented using `Ownable`
-- Chainlink VRF for secure randomness
-- Reentrancy protection in marketplace transactions
-- Comprehensive test coverage
+Currently implemented:
+- [x] OpenZeppelin's battle-tested implementations
+- [x] Access control using `Ownable`
+- [x] Comprehensive test coverage
+
+Coming soon:
+- [ ] Chainlink VRF for secure randomness
+- [ ] Reentrancy protection in marketplace transactions
 
 ## Contributing
 

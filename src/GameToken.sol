@@ -3,50 +3,37 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/IGameToken.sol";
 
-contract GameToken is ERC20, Ownable {
-    // Quest contract address that can mint rewards
-    address public questContract;
-    
-    // Events
-    event QuestContractUpdated(address indexed oldQuestContract, address indexed newQuestContract);
+contract GameToken is IGameToken, ERC20, Ownable {
+    mapping(address => bool) public questContracts;
+    mapping(address => bool) public marketplaceContracts;
 
-    constructor() ERC20("DnD Gold", "GOLD") Ownable(msg.sender) {}
+    constructor() ERC20("Game Token", "GAME") Ownable(msg.sender) { }
 
-    /**
-     * @dev Set the quest contract address
-     * @param _questContract Address of the quest contract
-     */
-    function setQuestContract(address _questContract) external onlyOwner {
-        emit QuestContractUpdated(questContract, _questContract);
-        questContract = _questContract;
+    modifier onlyQuestOrOwner() {
+        require(questContracts[msg.sender] || msg.sender == owner(), "Not authorized");
+        _;
     }
 
-    /**
-     * @dev Mint tokens as quest rewards
-     * @param to Address to receive the tokens
-     * @param amount Amount of tokens to mint
-     */
-    function mintQuestReward(address to, uint256 amount) external {
-        require(msg.sender == questContract, "Only quest contract can mint rewards");
+    modifier onlyMarketplaceOrOwner() {
+        require(marketplaceContracts[msg.sender] || msg.sender == owner(), "Not authorized");
+        _;
+    }
+
+    function setQuestContract(address questContract, bool authorized) public onlyOwner {
+        questContracts[questContract] = authorized;
+    }
+
+    function setMarketplaceContract(address marketplaceContract, bool authorized) public onlyOwner {
+        marketplaceContracts[marketplaceContract] = authorized;
+    }
+
+    function mint(address to, uint256 amount) public onlyQuestOrOwner {
         _mint(to, amount);
     }
 
-    /**
-     * @dev Burn tokens (for marketplace fees, crafting costs, etc.)
-     * @param amount Amount of tokens to burn
-     */
-    function burn(uint256 amount) public {
-        _burn(msg.sender, amount);
+    function burn(address from, uint256 amount) public onlyMarketplaceOrOwner {
+        _burn(from, amount);
     }
-
-    /**
-     * @dev Burn tokens from an approved address
-     * @param account Address to burn tokens from
-     * @param amount Amount of tokens to burn
-     */
-    function burnFrom(address account, uint256 amount) public {
-        _spendAllowance(account, msg.sender, amount);
-        _burn(account, amount);
-    }
-} 
+}
