@@ -18,10 +18,10 @@
   - [x] Implement start/complete quest functions  
   - [x] Reward in-game tokens and items
 
-- [ ] **Item Drop / Reward Contract with Chainlink VRF**  
-  - [ ] Integrate Chainlink VRF for unbiased random item drops  
-  - [ ] Configure subscription or request/response pattern for randomness requests  
-  - [ ] Ensure secure callback to distribute random items (e.g., rare swords, special potions)
+- [x] **Item Drop / Reward Contract with Chainlink VRF**  
+  - [x] Integrate Chainlink VRF for unbiased random item drops  
+  - [x] Configure subscription or request/response pattern for randomness requests  
+  - [x] Ensure secure callback to distribute random items (e.g., rare swords, special potions)
 
 **Basic Marketplace**  
 - [ ] **Auction House**  

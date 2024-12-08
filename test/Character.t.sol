@@ -58,13 +58,16 @@ contract CharacterTest is Test {
 
         // Mint character to user
         uint256 tokenId = character.mintCharacter(user, strengthChar, Types.Alignment.STRENGTH);
-
-        // Mint equipment to user
-        equipment.mint(user, 1, 1, "");
-        equipment.mint(user, 2, 1, "");
+        
+        // Get character's wallet
+        CharacterWallet wallet = character.characterWallets(tokenId);
+        
+        // Mint equipment to wallet
+        equipment.mint(address(wallet), 1, 1, "");
+        equipment.mint(address(wallet), 2, 1, "");
         vm.stopPrank();
 
-        // Switch to user and equip items
+        // Equip items as the user
         vm.startPrank(user);
         character.equip(tokenId, 1, 2);
         vm.stopPrank();

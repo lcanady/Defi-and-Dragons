@@ -21,4 +21,5 @@ interface IEquipment {
         view
         returns (uint8 strengthBonus, uint8 agilityBonus, uint8 magicBonus);
     function balanceOf(address account, uint256 id) external view returns (uint256);
+    function mint(address to, uint256 id, uint256 amount, bytes memory data) external;
 }

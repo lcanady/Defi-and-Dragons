@@ -2,93 +2,144 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./Character.sol";
-import "./Equipment.sol";
+import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
+import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
+import "./interfaces/IEquipment.sol";
 
-contract ItemDrop is Ownable {
-    Character public character;
-    Equipment public equipment;
+contract ItemDrop is VRFConsumerBaseV2, Ownable {
+    VRFCoordinatorV2Interface private immutable coordinator;
+    IEquipment private immutable equipment;
 
+    // Chainlink VRF configuration
+    bytes32 private immutable keyHash;
+    uint64 private immutable subscriptionId;
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
+    uint32 private constant CALLBACK_GAS_LIMIT = 200000;
+    uint32 private constant NUM_WORDS = 1;
+
+    // Drop request tracking
+    struct DropRequest {
+        address player;
+        uint256 dropTableId;
+        bool fulfilled;
+    }
+    
+    mapping(uint256 => DropRequest) public dropRequests;
+    
+    // Drop table configuration
+    struct DropEntry {
+        uint256 equipmentId;
+        uint16 weight;  // Relative probability weight (1-1000)
+    }
+    
     struct DropTable {
-        uint256[] itemIds;
-        uint256[] weights; // In basis points (100 = 1%)
-        uint256 minLevel;
+        string name;
+        uint16 totalWeight;
+        bool active;
+        DropEntry[] entries;
     }
-
-    // Mapping from drop table ID to drop table
+    
     mapping(uint256 => DropTable) public dropTables;
-    uint256 public nextDropTableId = 1;
+    
+    // Events
+    event DropRequested(uint256 indexed requestId, address indexed player, uint256 dropTableId);
+    event DropFulfilled(uint256 indexed requestId, address indexed player, uint256 equipmentId);
+    event DropTableCreated(uint256 indexed dropTableId, string name);
+    event DropTableUpdated(uint256 indexed dropTableId, string name);
 
-    event DropTableCreated(uint256 indexed dropTableId);
-    event ItemDropped(uint256 indexed characterId, uint256 indexed itemId, uint256 amount);
-
-    constructor(address characterContract, address equipmentContract) Ownable(msg.sender) {
-        character = Character(characterContract);
-        equipment = Equipment(equipmentContract);
+    constructor(
+        address _vrfCoordinator,
+        address _equipment,
+        bytes32 _keyHash,
+        uint64 _subscriptionId
+    ) VRFConsumerBaseV2(_vrfCoordinator) Ownable(msg.sender) {
+        coordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
+        equipment = IEquipment(_equipment);
+        keyHash = _keyHash;
+        subscriptionId = _subscriptionId;
     }
 
-    function createDropTable(uint256[] memory itemIds, uint256[] memory weights, uint256 minLevel)
-        public
-        onlyOwner
-        returns (uint256)
-    {
-        require(itemIds.length == weights.length, "Arrays must be same length");
+    function createDropTable(
+        uint256 dropTableId,
+        string memory name,
+        DropEntry[] memory entries
+    ) external onlyOwner {
+        require(!dropTables[dropTableId].active, "Drop table already exists");
+        require(entries.length > 0, "Must have at least one entry");
 
-        uint256 totalWeight = 0;
-        for (uint256 i = 0; i < weights.length; i++) {
-            totalWeight += weights[i];
+        uint16 totalWeight;
+        for (uint i = 0; i < entries.length; i++) {
+            require(entries[i].weight > 0 && entries[i].weight <= 1000, "Invalid weight");
+            totalWeight += entries[i].weight;
         }
-        require(totalWeight == 10_000, "Weights must sum to 100%");
 
-        uint256 dropTableId = nextDropTableId++;
-        dropTables[dropTableId] = DropTable({ itemIds: itemIds, weights: weights, minLevel: minLevel });
+        dropTables[dropTableId] = DropTable({
+            name: name,
+            totalWeight: totalWeight,
+            active: true,
+            entries: entries
+        });
 
-        emit DropTableCreated(dropTableId);
-        return dropTableId;
+        emit DropTableCreated(dropTableId, name);
     }
 
-    function rollDrop(uint256 dropTableId, uint256 characterId) public returns (uint256) {
-        require(character.ownerOf(characterId) == msg.sender, "Not character owner");
-
-        DropTable storage dropTable = dropTables[dropTableId];
-        require(dropTable.itemIds.length > 0, "Drop table does not exist");
-
-        // Get character stats
-        (Types.Stats memory stats,, Types.CharacterState memory state) = character.getCharacter(characterId);
-        uint256 characterLevel = (stats.strength + stats.agility + stats.magic) / 30; // Simple level calculation
-        require(characterLevel >= dropTable.minLevel, "Character level too low");
-
-        // Generate random number using block data and character info
-        uint256 randomNumber = uint256(
-            keccak256(
-                abi.encodePacked(block.timestamp, block.prevrandao, msg.sender, characterId, state.roundsParticipated)
-            )
+    function requestDrop(uint256 dropTableId) external returns (uint256) {
+        require(dropTables[dropTableId].active, "Drop table not active");
+        
+        uint256 requestId = coordinator.requestRandomWords(
+            keyHash,
+            subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            CALLBACK_GAS_LIMIT,
+            NUM_WORDS
         );
 
-        // Roll for item
-        uint256 roll = randomNumber % 10_000; // Roll between 0-9999
-        uint256 currentWeight = 0;
+        dropRequests[requestId] = DropRequest({
+            player: msg.sender,
+            dropTableId: dropTableId,
+            fulfilled: false
+        });
 
-        for (uint256 i = 0; i < dropTable.itemIds.length; i++) {
-            currentWeight += dropTable.weights[i];
-            if (roll < currentWeight) {
-                // Mint the item
-                equipment.mint(msg.sender, dropTable.itemIds[i], 1, "");
-                emit ItemDropped(characterId, dropTable.itemIds[i], 1);
-                return dropTable.itemIds[i];
+        emit DropRequested(requestId, msg.sender, dropTableId);
+        return requestId;
+    }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+        DropRequest storage request = dropRequests[requestId];
+        require(!request.fulfilled, "Request already fulfilled");
+        
+        DropTable storage dropTable = dropTables[request.dropTableId];
+        uint256 roll = (randomWords[0] % dropTable.totalWeight) + 1;
+        
+        uint256 selectedEquipmentId;
+        uint16 currentTotal;
+        
+        for (uint i = 0; i < dropTable.entries.length; i++) {
+            currentTotal += dropTable.entries[i].weight;
+            if (roll <= currentTotal) {
+                selectedEquipmentId = dropTable.entries[i].equipmentId;
+                break;
             }
         }
 
-        revert("No item rolled");
+        request.fulfilled = true;
+        equipment.mint(request.player, selectedEquipmentId, 1, "");
+        
+        emit DropFulfilled(requestId, request.player, selectedEquipmentId);
     }
 
-    function getDropTable(uint256 dropTableId)
-        public
-        view
-        returns (uint256[] memory itemIds, uint256[] memory weights, uint256 minLevel)
-    {
+    function getDropTable(uint256 dropTableId) external view returns (
+        string memory name,
+        uint16 totalWeight,
+        bool active,
+        DropEntry[] memory entries
+    ) {
         DropTable storage dropTable = dropTables[dropTableId];
-        require(dropTable.itemIds.length > 0, "Drop table does not exist");
-        return (dropTable.itemIds, dropTable.weights, dropTable.minLevel);
+        return (
+            dropTable.name,
+            dropTable.totalWeight,
+            dropTable.active,
+            dropTable.entries
+        );
     }
 }

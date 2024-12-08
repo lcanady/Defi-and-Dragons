@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { Test, console2 } from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import { Character } from "../src/Character.sol";
 import { Equipment } from "../src/Equipment.sol";
 import { Types } from "../src/interfaces/Types.sol";
+import { CharacterWallet } from "../src/CharacterWallet.sol";
 
 contract EquipmentTest is Test {
     Character public character;
@@ -14,7 +15,7 @@ contract EquipmentTest is Test {
     address public player2;
 
     // Test character stats
-    Types.Stats strengthChar = Types.Stats({ strength: 60, agility: 20, magic: 20 });
+    Types.Stats private strengthChar = Types.Stats({ strength: 60, agility: 20, magic: 20 });
 
     function setUp() public {
         owner = address(this);
@@ -73,10 +74,13 @@ contract EquipmentTest is Test {
 
         // Mint character
         uint256 tokenId = character.mintCharacter(player1, strengthChar, Types.Alignment.STRENGTH);
-
-        // Mint equipment to player
-        equipment.mint(player1, 1, 1, ""); // Weapon
-        equipment.mint(player1, 2, 1, ""); // Armor
+        
+        // Get character's wallet
+        CharacterWallet wallet = character.characterWallets(tokenId);
+        
+        // Mint equipment to wallet
+        equipment.mint(address(wallet), 1, 1, ""); // Weapon
+        equipment.mint(address(wallet), 2, 1, ""); // Armor
         vm.stopPrank();
 
         // Equip items
@@ -97,6 +101,9 @@ contract EquipmentTest is Test {
 
         // Mint character
         uint256 tokenId = character.mintCharacter(player1, strengthChar, Types.Alignment.STRENGTH);
+        
+        // Get character's wallet
+        CharacterWallet wallet = character.characterWallets(tokenId);
         vm.stopPrank();
 
         // Try to equip without owning (should fail)
@@ -105,9 +112,9 @@ contract EquipmentTest is Test {
         character.equip(tokenId, 1, 0);
         vm.stopPrank();
 
-        // Mint equipment and try again (should succeed)
+        // Mint equipment to wallet and try again (should succeed)
         vm.startPrank(owner);
-        equipment.mint(player1, 1, 1, "");
+        equipment.mint(address(wallet), 1, 1, "");
         vm.stopPrank();
 
         vm.startPrank(player1);
