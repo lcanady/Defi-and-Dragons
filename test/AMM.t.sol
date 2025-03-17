@@ -193,4 +193,188 @@ contract AMMTest is Test {
 
         assertGt(gameToken.balanceOf(user1), 0);
     }
+
+    // Additional Factory Tests
+    function testInvalidPairCreation() public {
+        vm.expectRevert("IDENTICAL_ADDRESSES");
+        factory.createPair(address(gameToken), address(gameToken));
+
+        vm.expectRevert("ZERO_ADDRESS");
+        factory.createPair(address(0), address(gameToken));
+    }
+
+    function testDuplicatePairCreation() public {
+        factory.createPair(address(gameToken), address(stableToken));
+        vm.expectRevert("PAIR_EXISTS");
+        factory.createPair(address(gameToken), address(stableToken));
+    }
+
+    function testPairSorting() public {
+        // Create pair with tokens in one order
+        address pair1 = factory.createPair(address(gameToken), address(stableToken));
+        
+        // Try to create pair with tokens in reverse order - should revert
+        vm.expectRevert("PAIR_EXISTS");
+        factory.createPair(address(stableToken), address(gameToken));
+        
+        // Verify the pair exists and is the same
+        address existingPair = factory.getPair(address(stableToken), address(gameToken));
+        assertEq(existingPair, pair1, "Pairs should be identical regardless of token order");
+    }
+
+    // Additional Router Tests
+    function testRemoveLiquidity() public {
+        // Create pair and add liquidity
+        factory.createPair(address(gameToken), address(stableToken));
+        vm.startPrank(user1);
+        (uint256 amountA, uint256 amountB, uint256 liquidity) = 
+            router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 0, 0, user1);
+        
+        // Approve LP tokens to router
+        address pair = factory.getPair(address(gameToken), address(stableToken));
+        ArcanePair(pair).approve(address(router), liquidity);
+
+        // Remove liquidity
+        (uint256 returnedA, uint256 returnedB) = 
+            router.removeLiquidity(address(gameToken), address(stableToken), liquidity, 0, 0, user1);
+        vm.stopPrank();
+
+        // Account for potential rounding errors with a small tolerance
+        uint256 tolerance = 1e15; // 0.001%
+        assertApproxEqAbs(returnedA, amountA, tolerance, "Incorrect token A return");
+        assertApproxEqAbs(returnedB, amountB, tolerance, "Incorrect token B return");
+    }
+
+    function testSlippageProtection() public {
+        // Create pair and add liquidity
+        factory.createPair(address(gameToken), address(stableToken));
+        vm.startPrank(user1);
+        router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 0, 0, user1);
+        vm.stopPrank();
+
+        // Try to swap with high minimum output requirement
+        vm.startPrank(user2);
+        address[] memory path = new address[](2);
+        path[0] = address(gameToken);
+        path[1] = address(stableToken);
+
+        bytes memory errorMsg = abi.encodeWithSignature("InsufficientOutputAmount()");
+        vm.expectRevert(errorMsg);
+        router.swapExactTokensForTokens(10e18, 11e18, path, user2); // Expecting more output than possible
+        vm.stopPrank();
+    }
+
+    // Additional Staking Tests
+    function testEmergencyWithdraw() public {
+        // Setup staking pool and deposit
+        factory.createPair(address(gameToken), address(stableToken));
+        vm.startPrank(user1);
+        router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 100e18, 100e18, user1);
+        address pair = factory.getPair(address(gameToken), address(stableToken));
+        ArcanePair(pair).approve(address(staking), type(uint256).max);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        staking.addPool(100, IERC20(pair), 1 days);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        uint256 lpBalance = ArcanePair(pair).balanceOf(user1);
+        staking.deposit(0, lpBalance);
+
+        // Emergency withdraw
+        staking.emergencyWithdraw(0);
+        vm.stopPrank();
+
+        assertEq(ArcanePair(pair).balanceOf(user1), lpBalance, "LP tokens not returned");
+        (uint256 amount, uint256 rewardDebt, uint256 lastStakeTime) = staking.userInfo(0, user1);
+        assertEq(amount, 0, "Staked amount not reset");
+    }
+
+    function testMultiUserStaking() public {
+        // Setup staking pool
+        factory.createPair(address(gameToken), address(stableToken));
+        
+        // User1 adds liquidity and stakes
+        vm.startPrank(user1);
+        router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 0, 0, user1);
+        address pair = factory.getPair(address(gameToken), address(stableToken));
+        ArcanePair(pair).approve(address(staking), type(uint256).max);
+        vm.stopPrank();
+
+        // User2 adds liquidity and stakes
+        vm.startPrank(user2);
+        router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 0, 0, user2);
+        ArcanePair(pair).approve(address(staking), type(uint256).max);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        staking.addPool(100, IERC20(pair), 1 days);
+        vm.stopPrank();
+
+        // Both users stake equal amounts
+        vm.startPrank(user1);
+        uint256 user1LP = ArcanePair(pair).balanceOf(user1);
+        staking.deposit(0, user1LP);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        uint256 user2LP = ArcanePair(pair).balanceOf(user2);
+        staking.deposit(0, user2LP);
+        vm.stopPrank();
+
+        // Mine blocks and check rewards
+        vm.roll(block.number + 10);
+        
+        // Account for potential rounding errors with a small tolerance
+        uint256 user1Reward = staking.pendingReward(0, user1);
+        uint256 user2Reward = staking.pendingReward(0, user2);
+        uint256 tolerance = 1e15; // 0.001%
+        
+        assertGt(user1Reward, 0, "User1 should have rewards");
+        assertGt(user2Reward, 0, "User2 should have rewards");
+        assertApproxEqAbs(user1Reward, user2Reward, tolerance, "Users should have equal rewards for equal stakes");
+    }
+
+    // Additional Quest Integration Tests
+    function testLPRequirementTiers() public {
+        // Setup LP requirement for different tiers
+        vm.startPrank(owner);
+        questIntegration.setQuestTierLPRequirement(1, 50e18);
+        questIntegration.setQuestTierLPRequirement(2, 100e18);
+
+        // Set pair eligibility
+        address pair = factory.createPair(address(gameToken), address(stableToken));
+        questIntegration.setLPPairEligibility(pair, true);
+        vm.stopPrank();
+
+        // Add liquidity
+        vm.startPrank(user1);
+        router.addLiquidity(address(gameToken), address(stableToken), 75e18, 75e18, 0, 0, user1);
+        vm.stopPrank();
+
+        // Check tier requirements
+        assertTrue(questIntegration.meetsLPRequirement(user1, 1), "Should meet tier 1 requirement");
+        assertFalse(questIntegration.meetsLPRequirement(user1, 2), "Should not meet tier 2 requirement");
+    }
+
+    function testEnhancedDropRates() public {
+        // Setup LP pair and drop rate bonus
+        address pair = factory.createPair(address(gameToken), address(stableToken));
+        
+        vm.startPrank(owner);
+        questIntegration.setLPPairEligibility(pair, true);
+        questIntegration.setLPDropRateBonus(pair, 5000); // 50% bonus
+        vm.stopPrank();
+
+        // Add liquidity
+        vm.startPrank(user1);
+        router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 100e18, 100e18, user1);
+        vm.stopPrank();
+
+        // Check drop rate bonus
+        uint256 bonus = questIntegration.calculateDropRateBonus(user1);
+        assertEq(bonus, 5000, "Incorrect drop rate bonus");
+        assertTrue(questIntegration.isEligibleForEnhancedRewards(user1), "Should be eligible for enhanced rewards");
+    }
 }

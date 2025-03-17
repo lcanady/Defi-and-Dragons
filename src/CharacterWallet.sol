@@ -3,11 +3,12 @@ pragma solidity ^0.8.20;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import { Types } from "./interfaces/Types.sol";
 import { IEquipment } from "./interfaces/IEquipment.sol";
 import { OnlyCharacterContract, NotWeaponOwner, NotArmorOwner } from "./interfaces/Errors.sol";
 
-contract CharacterWallet is Ownable, ERC1155Holder {
+contract CharacterWallet is Ownable, ERC1155Holder, ERC721Holder {
     IEquipment public immutable equipment;
     uint256 public immutable characterId;
     address public immutable characterContract;
@@ -30,13 +31,17 @@ contract CharacterWallet is Ownable, ERC1155Holder {
     }
 
     function equip(uint256 weaponId, uint256 armorId) external onlyCharacterContract {
-        if (weaponId > 0) {
-            if (equipment.balanceOf(owner(), weaponId) == 0) revert NotWeaponOwner();
+        // Check weapon ownership and equip
+        if (equipment.balanceOf(address(this), weaponId) == 0) {
+            if (weaponId != 0) revert NotWeaponOwner();
+        } else {
             _equippedItems.weaponId = weaponId;
         }
 
-        if (armorId > 0) {
-            if (equipment.balanceOf(owner(), armorId) == 0) revert NotArmorOwner();
+        // Check armor ownership and equip
+        if (equipment.balanceOf(address(this), armorId) == 0) {
+            if (armorId != 0) revert NotArmorOwner();
+        } else {
             _equippedItems.armorId = armorId;
         }
 

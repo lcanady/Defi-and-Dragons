@@ -7,8 +7,22 @@ import { Equipment } from "../../src/Equipment.sol";
 contract TestHelper is Test {
     function setupEquipment(Equipment equipment, address characterContract) public {
         equipment.setCharacterContract(characterContract);
-        equipment.createEquipment(1, "Test Weapon", "A test weapon", 5, 0, 0);
-        equipment.createEquipment(2, "Test Armor", "A test armor", 0, 5, 0);
+        // Create test equipment
+        equipment.createEquipment(
+            "Test Weapon",
+            "A test weapon",
+            5, // strength bonus
+            0, // agility bonus
+            0  // magic bonus
+        );
+
+        equipment.createEquipment(
+            "Test Armor",
+            "A test armor",
+            0, // strength bonus
+            5, // agility bonus
+            0  // magic bonus
+        );
     }
 
     function findRequestIdFromLogs(Vm.Log[] memory entries) public pure returns (uint256 requestId, bool found) {
@@ -25,8 +39,8 @@ contract TestHelper is Test {
         }
     }
 
-    function mintTestEquipment(Equipment equipment, address to, uint256[] memory itemIds, uint256[] memory amounts)
-        public
+    function _mintTestEquipment(Equipment equipment, address to, uint256[] memory itemIds, uint256[] memory amounts)
+        internal
     {
         require(itemIds.length == amounts.length, "Array length mismatch");
         for (uint256 i = 0; i < itemIds.length; i++) {
@@ -34,8 +48,8 @@ contract TestHelper is Test {
         }
     }
 
-    function checkEquipmentBalances(Equipment equipment, address owner, uint256[] memory itemIds)
-        public
+    function _checkEquipmentBalances(Equipment equipment, address owner, uint256[] memory itemIds)
+        internal
         view
         returns (uint256[] memory)
     {

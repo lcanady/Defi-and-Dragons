@@ -1,5 +1,4 @@
-@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
-@chainlink/contracts/src/v0.8/=lib/chainlink-brownie-contracts/contracts/src/v0.8/
-forge-std/=lib/forge-std/src/
+@openzeppelin/=lib/openzeppelin-contracts/
+@chainlink/=lib/chainlink/
 ds-test/=lib/forge-std/lib/ds-test/src/
-@openzeppelin/=lib/openzeppelin-contracts/ 
+forge-std/=lib/forge-std/src/ 

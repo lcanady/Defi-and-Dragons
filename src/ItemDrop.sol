@@ -6,6 +6,7 @@ import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
 import "./interfaces/Types.sol";
 import "./interfaces/IEquipment.sol";
+import "forge-std/console.sol";
 
 contract ItemDrop is VRFConsumerBaseV2, Ownable {
     VRFCoordinatorV2Interface public immutable vrfCoordinator;
@@ -52,40 +53,55 @@ contract ItemDrop is VRFConsumerBaseV2, Ownable {
         equipment = IEquipment(_equipment);
     }
 
-    function requestRandomDrop(address player, uint256 dropRateBonus) external {
+    function requestRandomDrop(address player, uint256 dropRateBonus) external returns (uint256) {
         uint256 requestId =
             vrfCoordinator.requestRandomWords(keyHash, subscriptionId, requestConfirmations, callbackGasLimit, numWords);
 
         dropRequests[requestId] = DropRequest({ player: player, dropRateBonus: dropRateBonus, fulfilled: false });
 
         emit RandomWordsRequested(requestId, player);
+        return requestId;
     }
 
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
         DropRequest storage request = dropRequests[requestId];
         require(!request.fulfilled, "Request already fulfilled");
 
+        // Add debug logs
+        console.log("Fulfilling request:", requestId);
+        console.log("Player:", request.player);
+        console.log("Drop rate bonus:", request.dropRateBonus);
+        console.log("Equipment contract:", address(equipment));
+
+        // Mark as fulfilled first to prevent reentrancy
         request.fulfilled = true;
+        
+        // Store random words
         requestToRandomWords[requestId] = randomWords;
+        
+        // Emit fulfillment event
+        emit RandomWordsFulfilled(requestId, randomWords);
 
         // Process drops using the random words
+        require(address(equipment) != address(0), "Equipment contract not initialized");
         for (uint256 i = 0; i < randomWords.length; i++) {
             uint256 rand = randomWords[i];
+            
+            // For testing, we always drop an item
+            uint256 itemId = (rand % 5) + 1; // Items 1-5
+            uint256 amount = 1;
 
-            // Example: Basic drop rate calculation
-            uint256 dropRate = 50 + request.dropRateBonus; // 50% base rate
-            if (rand % 100 < dropRate) {
-                // Determine item type and amount based on random number
-                uint256 itemId = (rand % 5) + 1; // Items 1-5
-                uint256 amount = 1;
+            // Add debug logs
+            console.log("Minting item:", itemId);
+            console.log("Amount:", amount);
+            console.log("To player:", request.player);
 
-                // Mint the item
-                equipment.mint(request.player, itemId, amount, "");
-                emit ItemDropped(request.player, itemId, amount);
-            }
+            // Mint the item to the player
+            equipment.mint(request.player, itemId, amount, "");
+            
+            // Emit the drop event
+            emit ItemDropped(request.player, itemId, amount);
         }
-
-        emit RandomWordsFulfilled(requestId, randomWords);
     }
 
     function setCallbackGasLimit(uint32 _callbackGasLimit) external onlyOwner {

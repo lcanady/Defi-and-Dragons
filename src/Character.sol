@@ -57,7 +57,8 @@ contract Character is ERC721, Ownable, ICharacter {
             consecutiveHits: 0,
             damageReceived: 0,
             roundsParticipated: 0,
-            alignment: alignment
+            alignment: alignment,
+            level: 1
         });
 
         emit CharacterCreated(tokenId, to, address(wallet));

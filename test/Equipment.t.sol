@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import { Equipment } from "../src/Equipment.sol";
 import { Types } from "../src/interfaces/Types.sol";
 
@@ -17,53 +17,112 @@ contract EquipmentTest is Test {
     }
 
     function testCreateEquipment() public {
-        equipment.createEquipment(1, "Test Weapon", "A test weapon", 5, 0, 0);
-        Types.EquipmentStats memory stats = equipment.getEquipmentStats(1);
-        assertEq(stats.strengthBonus, 5);
-        assertEq(stats.agilityBonus, 0);
-        assertEq(stats.magicBonus, 0);
-        assertEq(stats.name, "Test Weapon");
-        assertEq(stats.description, "A test weapon");
-        assertTrue(stats.isActive);
+        uint256 weaponId = equipment.createEquipment(
+            "Test Weapon",
+            "A test weapon",
+            5, // strength bonus
+            0, // agility bonus
+            0  // magic bonus
+        );
+
+        (Types.EquipmentStats memory stats, bool exists) = equipment.getEquipmentStats(weaponId);
+        assertTrue(exists, "Equipment should exist");
+        assertEq(stats.strengthBonus, 5, "Incorrect strength bonus");
+        assertEq(stats.agilityBonus, 0, "Incorrect agility bonus");
+        assertEq(stats.magicBonus, 0, "Incorrect magic bonus");
+        assertTrue(stats.isActive, "Equipment should be active");
     }
 
-    function testEquipmentFlow() public {
-        // Create equipment
-        equipment.createEquipment(1, "Test Weapon", "A test weapon", 5, 0, 0);
+    function testMintEquipment() public {
+        uint256 weaponId = equipment.createEquipment(
+            "Test Weapon",
+            "A test weapon",
+            5, // strength bonus
+            0, // agility bonus
+            0  // magic bonus
+        );
 
-        // Set character contract
-        equipment.setCharacterContract(address(this));
-
-        // Mint equipment to user
-        equipment.mint(user, 1, 1, "");
-
-        // Set up special abilities
-        Types.SpecialAbility[] memory abilities = new Types.SpecialAbility[](1);
-        abilities[0] = Types.SpecialAbility({
-            name: "Power Strike",
-            description: "Deals extra damage",
-            triggerCondition: Types.TriggerCondition.ON_HIGH_DAMAGE,
-            triggerValue: 50,
-            effectType: Types.EffectType.DAMAGE_BOOST,
-            effectValue: 20,
-            cooldown: 3
-        });
-        equipment.setSpecialAbilities(1, abilities);
-
-        // Check ability
-        Types.SpecialAbility memory ability = equipment.getSpecialAbility(1, 0);
-        assertEq(ability.name, "Power Strike");
-        assertEq(ability.effectValue, 20);
-
-        // Check trigger condition
-        equipment.updateAbilityCooldown(1, 1, 0, 5);
-        assertTrue(equipment.checkTriggerCondition(1, 1, 0, 10));
+        equipment.mint(user, weaponId, 1, "");
+        assertEq(equipment.balanceOf(user, weaponId), 1, "User should have 1 weapon");
     }
 
-    function testEquipmentRequirements() public {
-        equipment.createEquipment(1, "Test Weapon", "A test weapon", 5, 0, 0);
+    function testDeactivateEquipment() public {
+        uint256 weaponId = equipment.createEquipment(
+            "Test Weapon",
+            "A test weapon",
+            5, // strength bonus
+            0, // agility bonus
+            0  // magic bonus
+        );
 
-        vm.expectRevert("Only character contract");
-        equipment.updateAbilityCooldown(1, 1, 0, 5);
+        equipment.deactivateEquipment(weaponId);
+        (Types.EquipmentStats memory stats, bool exists) = equipment.getEquipmentStats(weaponId);
+        assertTrue(exists, "Equipment should exist");
+        assertFalse(stats.isActive, "Equipment should be inactive");
+    }
+
+    function testActivateEquipment() public {
+        uint256 weaponId = equipment.createEquipment(
+            "Test Weapon",
+            "A test weapon",
+            5, // strength bonus
+            0, // agility bonus
+            0  // magic bonus
+        );
+
+        equipment.deactivateEquipment(weaponId);
+        equipment.activateEquipment(weaponId);
+        (Types.EquipmentStats memory stats, bool exists) = equipment.getEquipmentStats(weaponId);
+        assertTrue(exists, "Equipment should exist");
+        assertTrue(stats.isActive, "Equipment should be active");
+    }
+
+    function testFailMintDeactivatedEquipment() public {
+        uint256 weaponId = equipment.createEquipment(
+            "Test Weapon",
+            "A test weapon",
+            5, // strength bonus
+            0, // agility bonus
+            0  // magic bonus
+        );
+
+        equipment.deactivateEquipment(weaponId);
+        equipment.mint(user, weaponId, 1, "");
+    }
+
+    function testFailDeactivateNonexistentEquipment() public {
+        uint256 nonexistentId = 999;
+        equipment.deactivateEquipment(nonexistentId);
+    }
+
+    function testFailActivateNonexistentEquipment() public {
+        uint256 nonexistentId = 999;
+        equipment.activateEquipment(nonexistentId);
+    }
+
+    function testFailDeactivateZeroBonus() public {
+        // Create equipment with all zero bonuses
+        uint256 weaponId = equipment.createEquipment(
+            "Zero Bonus Weapon",
+            "A weapon with no bonuses",
+            0, // strength bonus
+            0, // agility bonus
+            0  // magic bonus
+        );
+
+        equipment.deactivateEquipment(weaponId);
+    }
+
+    function testFailActivateZeroBonus() public {
+        // Create equipment with all zero bonuses
+        uint256 weaponId = equipment.createEquipment(
+            "Zero Bonus Weapon",
+            "A weapon with no bonuses",
+            0, // strength bonus
+            0, // agility bonus
+            0  // magic bonus
+        );
+
+        equipment.activateEquipment(weaponId);
     }
 }

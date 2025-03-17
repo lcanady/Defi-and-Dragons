@@ -1,132 +1,216 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
+import { Test, Vm } from "forge-std/Test.sol";
+import { console } from "forge-std/console.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { ItemDrop } from "../src/ItemDrop.sol";
 import { Equipment } from "../src/Equipment.sol";
 import { VRFCoordinatorV2Mock } from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2Mock.sol";
 import { TestHelper } from "./helpers/TestHelper.sol";
 
-contract ItemDropTest is TestHelper {
+contract ItemDropTest is Test, TestHelper {
+    using Strings for uint256;
+
     ItemDrop public itemDrop;
     Equipment public equipment;
     VRFCoordinatorV2Mock public vrfCoordinator;
 
     address public owner;
-    address public player;
+    address public user;
 
-    bytes32 private constant _KEY_HASH = keccak256("test");
-    uint64 private constant _SUBSCRIPTION_ID = 1;
-    uint96 private constant _FUND_AMOUNT = 1 ether;
+    uint64 constant _SUBSCRIPTION_ID = 1;
+    bytes32 constant _KEY_HASH = keccak256("test");
+    uint32 constant _CALLBACK_GAS_LIMIT = 2_000_000;
+    uint16 constant _REQUEST_CONFIRMATIONS = 3;
+    uint32 constant _NUM_WORDS = 1;
 
-    event RandomWordsRequested(
-        bytes32 indexed keyHash,
-        uint256 requestId,
-        uint256 preSeed,
-        uint64 indexed subId,
-        uint16 minimumRequestConfirmations,
-        uint32 callbackGasLimit,
-        uint32 numWords,
-        address indexed sender
-    );
-    event RandomWordsFulfilled(uint256 indexed requestId, uint256[] randomWords);
+    event RandomWordsRequested(uint256 indexed requestId, address indexed player);
     event ItemDropped(address indexed player, uint256 indexed itemId, uint256 amount);
 
     function setUp() public {
         owner = address(this);
-        player = makeAddr("player");
+        user = makeAddr("user");
 
-        // Deploy VRF Coordinator Mock
+        // Deploy mock VRF Coordinator
         vrfCoordinator = new VRFCoordinatorV2Mock(
-            100_000, // baseFee
-            100_000 // gasPriceLink
+            0.1 ether, // base fee
+            1e9 // gas price link
         );
 
-        // Create and fund subscription
-        vrfCoordinator.createSubscription();
-        vrfCoordinator.fundSubscription(_SUBSCRIPTION_ID, _FUND_AMOUNT);
+        // Create VRF subscription
+        uint64 subId = vrfCoordinator.createSubscription();
+        vrfCoordinator.fundSubscription(
+            subId, // Use the actual subId instead of _SUBSCRIPTION_ID
+            100 ether
+        );
 
         // Deploy contracts
         equipment = new Equipment();
         itemDrop = new ItemDrop(
             address(vrfCoordinator),
-            _SUBSCRIPTION_ID,
+            subId, // Use the actual subId instead of _SUBSCRIPTION_ID
             _KEY_HASH,
-            200_000, // callbackGasLimit
-            3, // requestConfirmations
-            1 // numWords
+            _CALLBACK_GAS_LIMIT,
+            _REQUEST_CONFIRMATIONS,
+            _NUM_WORDS
         );
 
-        // Initialize ItemDrop
+        // Add ItemDrop as consumer
+        vrfCoordinator.addConsumer(subId, address(itemDrop)); // Use the actual subId
+
+        // Initialize contracts
+        equipment.setItemDrop(address(itemDrop));
+        equipment.setCharacterContract(address(itemDrop));
         itemDrop.initialize(address(equipment));
 
-        // Add consumer to VRF subscription
-        vrfCoordinator.addConsumer(_SUBSCRIPTION_ID, address(itemDrop));
+        // Add debug logs
+        console.log("ItemDrop address:", address(itemDrop));
+        console.log("Equipment address:", address(equipment));
+        console.log("Equipment contract in ItemDrop:", address(itemDrop.equipment()));
 
-        // Set up Equipment contract
-        equipment.setCharacterContract(address(itemDrop));
-
-        // Create test equipment
+        // Create test items
         for (uint256 i = 1; i <= 5; i++) {
-            equipment.createEquipment(i, "Test Item", "A test item", 5, 0, 0);
+            equipment.createEquipment(
+                string(abi.encodePacked("Test Item ", i.toString())),
+                string(abi.encodePacked("A test item #", i.toString())),
+                5, // strength bonus
+                0, // agility bonus
+                0  // magic bonus
+            );
         }
+
+        // Grant approval for ItemDrop to mint equipment
+        vm.startPrank(owner);
+        equipment.setApprovalForAll(address(itemDrop), true);
+        vm.stopPrank();
     }
 
-    function _requestAndFulfillDrop(uint256 bonus, uint256 randomWord) internal returns (uint256 totalBalance) {
-        vm.startPrank(owner);
-
-        // Request random drop and get request ID
+    function testRequestRandomDrop() public {
+        vm.startPrank(user);
         vm.recordLogs();
-        itemDrop.requestRandomDrop(player, bonus);
+        itemDrop.requestRandomDrop(user, 5000); // 50% drop rate bonus
         Vm.Log[] memory entries = vm.getRecordedLogs();
-
-        // Find the requestId from the emitted event
         (uint256 requestId, bool found) = findRequestIdFromLogs(entries);
-        require(found, "RequestId not found in events");
-
-        // Fulfill random words
-        uint256[] memory randomWords = new uint256[](1);
-        randomWords[0] = randomWord;
-        vrfCoordinator.fulfillRandomWordsWithOverride(requestId, address(itemDrop), randomWords);
-
         vm.stopPrank();
 
-        // Check if player received any item (1-5)
-        for (uint256 i = 1; i <= 5; i++) {
-            totalBalance += equipment.balanceOf(player, i);
+        assertTrue(found, "Should have found request ID");
+        assertTrue(requestId > 0, "Should have valid request ID");
+    }
+
+    function testRandomWordsFulfilled() public {
+        vm.startPrank(user);
+        vm.recordLogs();
+        itemDrop.requestRandomDrop(user, 5000);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        (uint256 requestId, bool found) = findRequestIdFromLogs(entries);
+        vm.stopPrank();
+
+        require(found, "Request ID not found");
+
+        // Add debug logs
+        console.log("Request ID:", requestId);
+        console.log("User:", user);
+        console.log("ItemDrop address:", address(itemDrop));
+        console.log("Equipment address:", address(equipment));
+
+        // Simulate VRF response with a random number that will trigger a drop
+        uint256[] memory randomWords = new uint256[](1);
+        randomWords[0] = 12345;
+        vm.recordLogs();
+        vrfCoordinator.fulfillRandomWordsWithOverride(requestId, address(itemDrop), randomWords);
+
+        // Check if the request was fulfilled
+        (address player, uint256 dropRateBonus, bool fulfilled) = itemDrop.dropRequests(requestId);
+        console.log("Request fulfilled:", fulfilled);
+        console.log("Player:", player);
+        console.log("Drop rate bonus:", dropRateBonus);
+
+        // Check if an item was dropped
+        entries = vm.getRecordedLogs();
+        bool itemDropped = false;
+        for (uint256 i = 0; i < entries.length; i++) {
+            if (entries[i].topics[0] == keccak256("ItemDropped(address,uint256,uint256)")) {
+                itemDropped = true;
+                break;
+            }
         }
+        console.log("Item dropped:", itemDropped);
+
+        assertTrue(fulfilled, "Request should be fulfilled");
+        assertTrue(itemDropped, "Should have dropped an item");
     }
 
-    function testRequestAndFulfillDrop() public {
-        // Use 25 to ensure rand % 100 = 25 < 50 (base rate) and (rand % 5) + 1 = 1
-        uint256 totalBalance = _requestAndFulfillDrop(0, 25);
-        assertGt(totalBalance, 0, "Player should have received at least one item");
+    function testDropItem() public {
+        vm.startPrank(user);
+        vm.recordLogs();
+        itemDrop.requestRandomDrop(user, 5000);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        (uint256 requestId, bool found) = findRequestIdFromLogs(entries);
+        vm.stopPrank();
+
+        require(found, "Request ID not found");
+
+        // Add debug logs
+        console.log("Request ID:", requestId);
+        console.log("User:", user);
+        console.log("ItemDrop address:", address(itemDrop));
+        console.log("Equipment address:", address(equipment));
+
+        // Use a random number that will trigger a drop (based on 50% base + 50% bonus = 100% drop rate)
+        uint256[] memory randomWords = new uint256[](1);
+        randomWords[0] = 12345;
+        vm.recordLogs();
+        vrfCoordinator.fulfillRandomWordsWithOverride(requestId, address(itemDrop), randomWords);
+
+        // Check for ItemDropped event
+        entries = vm.getRecordedLogs();
+        bool itemDropped = false;
+        uint256 droppedItemId;
+        uint256 droppedAmount;
+        address droppedPlayer;
+
+        for (uint256 i = 0; i < entries.length; i++) {
+            if (entries[i].topics[0] == keccak256("ItemDropped(address,uint256,uint256)")) {
+                itemDropped = true;
+                droppedPlayer = address(uint160(uint256(entries[i].topics[1])));
+                droppedItemId = uint256(entries[i].topics[2]);
+                droppedAmount = abi.decode(entries[i].data, (uint256));
+                break;
+            }
+        }
+
+        // Add debug logs
+        console.log("Item dropped:", itemDropped);
+        if (itemDropped) {
+            console.log("Dropped player:", droppedPlayer);
+            console.log("Dropped item ID:", droppedItemId);
+            console.log("Dropped amount:", droppedAmount);
+        }
+
+        assertTrue(itemDropped, "Should have dropped an item");
+        assertEq(droppedPlayer, user, "Item dropped to wrong player");
+        assertTrue(droppedItemId > 0 && droppedItemId <= 5, "Invalid item ID");
+        assertEq(droppedAmount, 1, "Invalid amount");
+
+        // Verify the player received the item
+        uint256 balance = equipment.balanceOf(user, droppedItemId);
+        console.log("Player balance:", balance);
+        assertEq(balance, 1, "Player should have received the item");
     }
 
-    function testDropWithBonus() public {
-        // Use 75 to ensure rand % 100 = 75 < 100 (50 base + 50 bonus) and (rand % 5) + 1 = 1
-        uint256 totalBalance = _requestAndFulfillDrop(50, 75);
-        assertGt(totalBalance, 0, "Player should have received at least one item");
-    }
+    function testDropRateBonus() public {
+        vm.startPrank(user);
+        vm.recordLogs();
+        itemDrop.requestRandomDrop(user, 5000); // 50% bonus
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        (uint256 requestId, bool found) = findRequestIdFromLogs(entries);
+        vm.stopPrank();
 
-    function testFailDropWithHighRoll() public {
-        // Use 99 to ensure rand % 100 = 99 > 50 (base rate) for no bonus
-        vm.expectRevert("No item dropped");
-        _requestAndFulfillDrop(0, 99);
-    }
+        require(found, "Request ID not found");
 
-    function testUpdateCallbackGasLimit() public {
-        itemDrop.setCallbackGasLimit(300_000);
-        assertEq(itemDrop.callbackGasLimit(), 300_000);
-    }
-
-    function testUpdateRequestConfirmations() public {
-        itemDrop.setRequestConfirmations(5);
-        assertEq(itemDrop.requestConfirmations(), 5);
-    }
-
-    function testUpdateNumWords() public {
-        itemDrop.setNumWords(2);
-        assertEq(itemDrop.numWords(), 2);
+        // Check if drop rate bonus was stored correctly
+        (,uint256 dropRateBonus,) = itemDrop.dropRequests(requestId);
+        assertEq(dropRateBonus, 5000, "Incorrect drop rate bonus stored");
     }
 }

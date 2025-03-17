@@ -39,32 +39,32 @@
 ### Phase 2: DeFi Expansion (AMM & Incentives)
 
 **AMM Integration**  
-- [ ] **AMM (Arcane Exchange)**  
-  - [ ] Deploy Uniswap-like Factory & Router contracts.  
-  - [ ] Create liquidity pools (in-game token paired with stable token or ETH).  
-  - [ ] Enable token swaps.
+- [x] **AMM (Arcane Exchange)**  
+  - [x] Deploy Uniswap-like Factory & Router contracts.  
+  - [x] Create liquidity pools (in-game token paired with stable token or ETH).  
+  - [x] Enable token swaps.
 
-- [ ] **Liquidity Provision (LP Tokens)**  
-  - [ ] Players add liquidity, receive LP tokens.  
+- [x] **Liquidity Provision (LP Tokens)**  
+  - [x] Players add liquidity, receive LP tokens.  
   - [ ] Front-end to show LP balances and pool details.
 
 **Incentive Mechanisms**  
-- [ ] **Staking / Farming Contract (e.g., MasterChef)**  
-  - [ ] Stake LP tokens to earn extra in-game tokens.  
-  - [ ] Set reward allocation and emission rates.
+- [x] **Staking / Farming Contract (e.g., MasterChef)**  
+  - [x] Stake LP tokens to earn extra in-game tokens.  
+  - [x] Set reward allocation and emission rates.
 
 **Quest & Crafting Integration**  
-- [ ] **AMM-based Quests**  
-  - [ ] Certain quests require holding LP tokens.  
-  - [ ] Enhanced item drops (via Chainlink VRF) for liquidity providers to incentivize participation.
+- [x] **AMM-based Quests**  
+  - [x] Certain quests require holding LP tokens.  
+  - [x] Enhanced item drops (via Chainlink VRF) for liquidity providers to incentivize participation.
 
-- [ ] **AMM-driven Crafting**  
-  - [ ] Some crafting recipes require LP tokens or AMM-derived resources.  
-  - [ ] Special gear only obtainable through AMM engagement.
+- [x] **AMM-driven Crafting**  
+  - [x] Some crafting recipes require LP tokens or AMM-derived resources.  
+  - [x] Special gear only obtainable through AMM engagement.
 
 **Testing & Deployment**  
-- [ ] Unit tests for AMM and incentive contracts.  
-- [ ] Integration tests with MVP components.  
+- [x] Unit tests for AMM and incentive contracts.  
+- [x] Integration tests with MVP components.  
 - [ ] Deploy to testnet, verify interactions, then mainnet.
 
 ---
@@ -72,33 +72,33 @@
 ### Phase 3: Hero Attributes (Titles, Abilities, Pets, Mounts) & Platform Benefits
 
 **Titles & Ranks**  
-- [ ] **Title NFTs or Metadata**  
-  - [ ] Assign titles to Character NFTs.  
-  - [ ] Titles grant platform-level benefits (e.g., +X bps on yield, reduced fees).  
-  - [ ] Check attributes during AMM swaps, staking, or marketplace interactions.
+- [x] **Title NFTs or Metadata**  
+  - [x] Assign titles to Character NFTs.  
+  - [x] Titles grant platform-level benefits (e.g., +X bps on yield, reduced fees).  
+  - [x] Check attributes during AMM swaps, staking, or marketplace interactions.
 
 **Abilities**  
-- [ ] **Hero Abilities System**  
-  - [ ] Store abilities as metadata or separate NFTs.  
-  - [ ] Abilities might reduce AMM fees, improve crafting success, or affect Chainlink VRF request frequency/costs for better drops.
+- [x] **Hero Abilities System**  
+  - [x] Store abilities as metadata or separate NFTs.  
+  - [x] Abilities might reduce AMM fees, improve crafting success, or affect Chainlink VRF request frequency/costs for better drops.
 
 **Pets & Mounts**  
-- [ ] **Pet NFT Contract**  
-  - [ ] Pets provide yield boosts or better random drop odds (could integrate with Chainlink VRF to improve rarity chances).  
-  - [ ] Configure different tiers of pets: common pets give slight boosts, legendary pets might improve drop rarities.
+- [x] **Pet NFT Contract**  
+  - [x] Pets provide yield boosts or better random drop odds (could integrate with Chainlink VRF to improve rarity chances).  
+  - [x] Configure different tiers of pets: common pets give slight boosts, legendary pets might improve drop rarities.
 
-- [ ] **Mount NFT Contract**  
-  - [ ] Mounts reduce quest fees, travel time, or LP lock-up periods.  
-  - [ ] Possibly improve APR in staking contracts or offer fee rebates on marketplace trades.
+- [x] **Mount NFT Contract**  
+  - [x] Mounts reduce quest fees, travel time, or LP lock-up periods.  
+  - [x] Possibly improve APR in staking contracts or offer fee rebates on marketplace trades.
 
 **Integration & UI**  
-- [ ] Calculate combined hero attributes and apply bonuses platform-wide.  
+- [x] Calculate combined hero attributes and apply bonuses platform-wide.  
 - [ ] Display hero attributes and benefits (extra APR, fee reductions, improved RNG outcomes) in the front-end.
 
 **Testing & Deployment**  
-- [ ] Unit tests for adding/removing titles, abilities, pets, mounts.  
-- [ ] Integration tests to ensure correct adjustments to APR and fees.  
-- [ ] Validate Chainlink VRF calls still function as expected with attribute modifiers.  
+- [x] Unit tests for adding/removing titles, abilities, pets, mounts.  
+- [x] Integration tests to ensure correct adjustments to APR and fees.  
+- [x] Validate Chainlink VRF calls still function as expected with attribute modifiers.  
 - [ ] Deploy after testnet validation.
 
 ---

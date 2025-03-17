@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 interface Types {
     enum Alignment {
-        NONE,
         STRENGTH,
         AGILITY,
         MAGIC
@@ -22,9 +21,9 @@ interface Types {
     }
 
     struct Stats {
-        uint8 strength;
-        uint8 agility;
-        uint8 magic;
+        uint256 strength;
+        uint256 agility;
+        uint256 magic;
     }
 
     struct CharacterState {
@@ -33,6 +32,7 @@ interface Types {
         uint256 damageReceived;
         uint256 roundsParticipated;
         Alignment alignment;
+        uint256 level;
     }
 
     struct EquipmentSlots {
@@ -57,5 +57,10 @@ interface Types {
         EffectType effectType;
         uint256 effectValue;
         uint256 cooldown;
+    }
+
+    struct AttributeBonuses {
+        uint256 yieldBoost;
+        uint256 dropRateBoost;
     }
 }

@@ -6,7 +6,7 @@ import "./Types.sol";
 interface IEquipment {
     function updateAbilityCooldown(uint256 characterId, uint256 equipmentId, uint256 abilityIndex, uint256 currentRound)
         external;
-    function getEquipmentStats(uint256 equipmentId) external view returns (Types.EquipmentStats memory);
+    function getEquipmentStats(uint256 equipmentId) external view returns (Types.EquipmentStats memory stats, bool exists);
     function getSpecialAbility(uint256 equipmentId, uint256 abilityIndex)
         external
         view

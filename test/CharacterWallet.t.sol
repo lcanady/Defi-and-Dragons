@@ -15,7 +15,7 @@ contract CharacterWalletTest is Test {
     uint256 public constant CHARACTER_ID = 1;
 
     function setUp() public {
-        owner = makeAddr("owner");
+        owner = address(this);
         characterContract = makeAddr("characterContract");
 
         // Deploy contracts
@@ -24,12 +24,30 @@ contract CharacterWalletTest is Test {
 
         // Setup equipment
         equipment.setCharacterContract(characterContract);
-        equipment.createEquipment(1, "Test Weapon", "A test weapon", 5, 0, 0);
-        equipment.createEquipment(2, "Test Armor", "A test armor", 0, 5, 0);
+        // Create test equipment
+        uint256 weaponId = equipment.createEquipment(
+            "Test Weapon",
+            "A test weapon",
+            5, // strength bonus
+            0, // agility bonus
+            0  // magic bonus
+        );
+
+        uint256 armorId = equipment.createEquipment(
+            "Test Armor",
+            "A test armor",
+            0, // strength bonus
+            5, // agility bonus
+            0  // magic bonus
+        );
 
         // Transfer wallet ownership to owner
         vm.prank(address(this));
         wallet.transferOwnership(owner);
+
+        // Approve equipment for wallet
+        vm.prank(owner);
+        equipment.setApprovalForAll(address(wallet), true);
     }
 
     function testWalletCreation() public {
@@ -39,7 +57,7 @@ contract CharacterWalletTest is Test {
     }
 
     function testEquipUnequip() public {
-        // Mint equipment to owner
+        // Mint equipment to wallet
         vm.startPrank(address(this));
         uint256[] memory itemIds = new uint256[](2);
         uint256[] memory amounts = new uint256[](2);
@@ -47,7 +65,7 @@ contract CharacterWalletTest is Test {
         itemIds[1] = 2;
         amounts[0] = 1;
         amounts[1] = 1;
-        mintTestEquipment(equipment, owner, itemIds, amounts);
+        _mintTestEquipment(equipment, address(wallet), itemIds, amounts);
         vm.stopPrank();
 
         // Equip items
@@ -70,7 +88,7 @@ contract CharacterWalletTest is Test {
     }
 
     function testEquipmentTransferWithCharacter() public {
-        // Mint equipment to owner
+        // Mint equipment to wallet
         vm.startPrank(address(this));
         uint256[] memory itemIds = new uint256[](2);
         uint256[] memory amounts = new uint256[](2);
@@ -78,7 +96,7 @@ contract CharacterWalletTest is Test {
         itemIds[1] = 2;
         amounts[0] = 1;
         amounts[1] = 1;
-        mintTestEquipment(equipment, owner, itemIds, amounts);
+        _mintTestEquipment(equipment, address(wallet), itemIds, amounts);
         vm.stopPrank();
 
         // Equip items
@@ -92,7 +110,7 @@ contract CharacterWalletTest is Test {
 
         // Verify new owner can equip/unequip
         vm.startPrank(address(this));
-        mintTestEquipment(equipment, newOwner, itemIds, amounts);
+        _mintTestEquipment(equipment, address(wallet), itemIds, amounts);
         vm.stopPrank();
 
         vm.prank(characterContract);
@@ -104,7 +122,7 @@ contract CharacterWalletTest is Test {
     }
 
     function testPartialUnequip() public {
-        // Mint equipment to owner
+        // Mint equipment to wallet
         vm.startPrank(address(this));
         uint256[] memory itemIds = new uint256[](2);
         uint256[] memory amounts = new uint256[](2);
@@ -112,7 +130,7 @@ contract CharacterWalletTest is Test {
         itemIds[1] = 2;
         amounts[0] = 1;
         amounts[1] = 1;
-        mintTestEquipment(equipment, owner, itemIds, amounts);
+        _mintTestEquipment(equipment, address(wallet), itemIds, amounts);
         vm.stopPrank();
 
         // Equip items
@@ -130,7 +148,7 @@ contract CharacterWalletTest is Test {
     }
 
     function testEquipmentBalanceAfterTransfer() public {
-        // Mint equipment to owner
+        // Mint equipment to wallet
         vm.startPrank(address(this));
         uint256[] memory itemIds = new uint256[](2);
         uint256[] memory amounts = new uint256[](2);
@@ -138,22 +156,22 @@ contract CharacterWalletTest is Test {
         itemIds[1] = 2;
         amounts[0] = 2;
         amounts[1] = 3;
-        mintTestEquipment(equipment, owner, itemIds, amounts);
+        _mintTestEquipment(equipment, address(wallet), itemIds, amounts);
         vm.stopPrank();
 
         // Check initial balances
-        uint256[] memory initialBalances = checkEquipmentBalances(equipment, owner, itemIds);
+        uint256[] memory initialBalances = _checkEquipmentBalances(equipment, address(wallet), itemIds);
         assertEq(initialBalances[0], 2, "Should have 2 weapons initially");
         assertEq(initialBalances[1], 3, "Should have 3 armor pieces initially");
 
         // Transfer some equipment
-        vm.startPrank(owner);
-        equipment.safeTransferFrom(owner, makeAddr("recipient"), 1, 1, "");
-        equipment.safeTransferFrom(owner, makeAddr("recipient"), 2, 2, "");
+        vm.startPrank(address(wallet));
+        equipment.safeTransferFrom(address(wallet), makeAddr("recipient"), 1, 1, "");
+        equipment.safeTransferFrom(address(wallet), makeAddr("recipient"), 2, 2, "");
         vm.stopPrank();
 
         // Check final balances
-        uint256[] memory finalBalances = checkEquipmentBalances(equipment, owner, itemIds);
+        uint256[] memory finalBalances = _checkEquipmentBalances(equipment, address(wallet), itemIds);
         assertEq(finalBalances[0], 1, "Should have 1 weapon after transfer");
         assertEq(finalBalances[1], 1, "Should have 1 armor piece after transfer");
     }
@@ -182,7 +200,7 @@ contract CharacterWalletTest is Test {
         wallet.equip(1, 2);
     }
 
-    function mintTestEquipment(Equipment _equipment, address _to, uint256[] memory _itemIds, uint256[] memory _amounts)
+    function _mintTestEquipment(Equipment _equipment, address _to, uint256[] memory _itemIds, uint256[] memory _amounts)
         internal
     {
         for (uint256 i = 0; i < _itemIds.length; i++) {
@@ -190,7 +208,7 @@ contract CharacterWalletTest is Test {
         }
     }
 
-    function checkEquipmentBalances(Equipment _equipment, address _owner, uint256[] memory _itemIds)
+    function _checkEquipmentBalances(Equipment _equipment, address _owner, uint256[] memory _itemIds)
         internal
         view
         returns (uint256[] memory)
