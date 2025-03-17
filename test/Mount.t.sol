@@ -28,9 +28,7 @@ contract MountTest is Test {
 
         // Create test character
         characterId = character.mintCharacter(
-            user,
-            Types.Stats({ strength: 10, agility: 10, magic: 10 }),
-            Types.Alignment.STRENGTH
+            user, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
         );
 
         // Create test mount
@@ -113,12 +111,8 @@ contract MountTest is Test {
         mountContract.mintMount(characterId, mountId);
 
         assertTrue(mountContract.hasActiveMount(characterId), "Should have active mount");
-        (
-            uint256 questFeeReduction,
-            uint256 travelTimeReduction,
-            uint256 stakingBoostBps,
-            uint256 lpLockReductionBps
-        ) = mountContract.getMountBenefits(characterId);
+        (uint256 questFeeReduction, uint256 travelTimeReduction, uint256 stakingBoostBps, uint256 lpLockReductionBps) =
+            mountContract.getMountBenefits(characterId);
         assertEq(questFeeReduction, 1000, "Incorrect quest fee reduction");
         assertEq(travelTimeReduction, 12 hours, "Incorrect travel reduction");
         assertEq(stakingBoostBps, 1000, "Incorrect staking boost");
@@ -134,20 +128,16 @@ contract MountTest is Test {
     function testUnassignMount() public {
         vm.startPrank(user);
         mountContract.mintMount(characterId, mountId);
-        
+
         // Verify mount is assigned before unassigning
         assertTrue(mountContract.hasActiveMount(characterId), "Should have active mount before unassigning");
         assertEq(mountContract.characterToMount(characterId), mountId, "Mount should be assigned to character");
-        
+
         mountContract.unassignMount(characterId);
 
         assertFalse(mountContract.hasActiveMount(characterId), "Should not have active mount");
-        (
-            uint256 questFeeReduction,
-            uint256 travelTimeReduction,
-            uint256 stakingBoostBps,
-            uint256 lpLockReductionBps
-        ) = mountContract.getMountBenefits(characterId);
+        (uint256 questFeeReduction, uint256 travelTimeReduction, uint256 stakingBoostBps, uint256 lpLockReductionBps) =
+            mountContract.getMountBenefits(characterId);
         assertEq(questFeeReduction, 0, "Should have no quest fee reduction");
         assertEq(travelTimeReduction, 0, "Should have no travel reduction");
         assertEq(stakingBoostBps, 0, "Should have no staking boost");
@@ -191,12 +181,8 @@ contract MountTest is Test {
         mountContract.deactivateMount(mountId);
         assertFalse(mountContract.hasActiveMount(characterId), "Mount should be inactive");
 
-        (
-            uint256 speedBoost,
-            uint256 staminaBoost,
-            uint256 yieldBoost,
-            uint256 dropRateBoost
-        ) = mountContract.getMountBenefits(characterId);
+        (uint256 speedBoost, uint256 staminaBoost, uint256 yieldBoost, uint256 dropRateBoost) =
+            mountContract.getMountBenefits(characterId);
 
         assertEq(speedBoost, 0, "Should have no speed boost");
         assertEq(staminaBoost, 0, "Should have no stamina boost");
@@ -283,4 +269,4 @@ contract MountTest is Test {
         );
         vm.stopPrank();
     }
-} 
+}

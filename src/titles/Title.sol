@@ -31,7 +31,9 @@ contract Title is ERC721, Ownable {
     ICharacter public immutable characterContract;
 
     // Events
-    event TitleCreated(uint256 indexed titleId, string name, uint256 yieldBoostBps, uint256 feeReductionBps, uint256 dropRateBoostBps);
+    event TitleCreated(
+        uint256 indexed titleId, string name, uint256 yieldBoostBps, uint256 feeReductionBps, uint256 dropRateBoostBps
+    );
     event TitleAssigned(uint256 indexed characterId, uint256 indexed titleId);
     event TitleRevoked(uint256 indexed characterId, uint256 indexed titleId);
     event TitleActivated(uint256 indexed titleId);
@@ -42,15 +44,14 @@ contract Title is ERC721, Ownable {
     }
 
     /// @notice Create a new title type
-    function createTitle(
-        string memory name,
-        uint256 yieldBoostBps,
-        uint256 feeReductionBps,
-        uint256 dropRateBoostBps
-    ) external onlyOwner returns (uint256) {
-        require(yieldBoostBps <= 10000, "Yield boost too high"); // Max 100%
-        require(feeReductionBps <= 10000, "Fee reduction too high"); // Max 100%
-        require(dropRateBoostBps <= 10000, "Drop rate boost too high"); // Max 100%
+    function createTitle(string memory name, uint256 yieldBoostBps, uint256 feeReductionBps, uint256 dropRateBoostBps)
+        external
+        onlyOwner
+        returns (uint256)
+    {
+        require(yieldBoostBps <= 10_000, "Yield boost too high"); // Max 100%
+        require(feeReductionBps <= 10_000, "Fee reduction too high"); // Max 100%
+        require(dropRateBoostBps <= 10_000, "Drop rate boost too high"); // Max 100%
 
         uint256 titleId = _nextTitleId++;
         titles[titleId] = TitleData({
@@ -73,11 +74,7 @@ contract Title is ERC721, Ownable {
             "Not character owner or contract owner"
         );
 
-        characterTitles[characterId] = CharacterTitle({
-            titleId: titleId,
-            timestamp: block.timestamp,
-            active: true
-        });
+        characterTitles[characterId] = CharacterTitle({ titleId: titleId, timestamp: block.timestamp, active: true });
 
         emit TitleAssigned(characterId, titleId);
     }
@@ -85,10 +82,10 @@ contract Title is ERC721, Ownable {
     /// @notice Revoke a title from a character
     function revokeTitle(uint256 characterId) external onlyOwner {
         require(characterTitles[characterId].active, "No active title");
-        
+
         uint256 titleId = characterTitles[characterId].titleId;
         characterTitles[characterId].active = false;
-        
+
         emit TitleRevoked(characterId, titleId);
     }
 
@@ -121,4 +118,4 @@ contract Title is ERC721, Ownable {
         titles[titleId].active = true;
         emit TitleActivated(titleId);
     }
-} 
+}

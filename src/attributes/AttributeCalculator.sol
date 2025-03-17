@@ -21,8 +21,8 @@ contract AttributeCalculator is Ownable {
     address[] private providerList;
 
     // Bonus multipliers (in basis points, 10000 = 100%)
-    uint256 public constant BASE_POINTS = 10000;
-    
+    uint256 public constant BASE_POINTS = 10_000;
+
     // Events
     event AttributesCalculated(
         uint256 indexed characterId,
@@ -40,10 +40,7 @@ contract AttributeCalculator is Ownable {
     error InvalidStatType();
     error InvalidProvider();
 
-    constructor(
-        address _characterContract,
-        address _equipmentContract
-    ) {
+    constructor(address _characterContract, address _equipmentContract) {
         characterContract = Character(_characterContract);
         equipmentContract = Equipment(_equipmentContract);
     }
@@ -115,11 +112,7 @@ contract AttributeCalculator is Ownable {
         });
 
         emit AttributesCalculated(
-            characterId,
-            totalStats.strength,
-            totalStats.agility,
-            totalStats.magic,
-            bonusMultiplier
+            characterId, totalStats.strength, totalStats.agility, totalStats.magic, bonusMultiplier
         );
 
         return (totalStats, bonusMultiplier);
@@ -151,9 +144,9 @@ contract AttributeCalculator is Ownable {
     /// @return The calculated bonus for the specified stat
     function getStatBonus(uint256 characterId, uint256 statType) public returns (uint256) {
         if (statType > 2) revert InvalidStatType();
-        
+
         (Types.Stats memory totalStats,) = calculateTotalAttributes(characterId);
-        
+
         if (statType == 0) return totalStats.strength;
         else if (statType == 1) return totalStats.agility;
         else return totalStats.magic;
@@ -172,16 +165,13 @@ contract AttributeCalculator is Ownable {
     /// @return bonuses The equipment stat bonuses
     function getEquipmentBonuses(uint256 characterId) public view returns (Types.Stats memory bonuses) {
         (, Types.EquipmentSlots memory equipment,) = characterContract.getCharacter(characterId);
-        
-        bonuses = Types.Stats({
-            strength: 0,
-            agility: 0,
-            magic: 0
-        });
+
+        bonuses = Types.Stats({ strength: 0, agility: 0, magic: 0 });
 
         // Add weapon bonuses if equipped and active
         if (equipment.weaponId != 0) {
-            (Types.EquipmentStats memory weaponStats, bool weaponExists) = equipmentContract.getEquipmentStats(equipment.weaponId);
+            (Types.EquipmentStats memory weaponStats, bool weaponExists) =
+                equipmentContract.getEquipmentStats(equipment.weaponId);
             if (weaponExists && weaponStats.isActive) {
                 bonuses.strength += weaponStats.strengthBonus;
                 bonuses.agility += weaponStats.agilityBonus;
@@ -191,7 +181,8 @@ contract AttributeCalculator is Ownable {
 
         // Add armor bonuses if equipped and active
         if (equipment.armorId != 0) {
-            (Types.EquipmentStats memory armorStats, bool armorExists) = equipmentContract.getEquipmentStats(equipment.armorId);
+            (Types.EquipmentStats memory armorStats, bool armorExists) =
+                equipmentContract.getEquipmentStats(equipment.armorId);
             if (armorExists && armorStats.isActive) {
                 bonuses.strength += armorStats.strengthBonus;
                 bonuses.agility += armorStats.agilityBonus;
@@ -206,8 +197,12 @@ contract AttributeCalculator is Ownable {
     /// @param characterId The ID of the character
     /// @param baseStats The base stats before any bonuses
     /// @return The total bonus multiplier in basis points
-    function calculateTotalBonusMultiplier(uint256 characterId, Types.Stats memory baseStats) public view returns (uint256) {
-        uint256 totalBonus = BASE_POINTS;  // Start with 100%
+    function calculateTotalBonusMultiplier(uint256 characterId, Types.Stats memory baseStats)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 totalBonus = BASE_POINTS; // Start with 100%
 
         // Get character state for alignment and level bonuses
         (,, Types.CharacterState memory state) = characterContract.getCharacter(characterId);
@@ -223,17 +218,20 @@ contract AttributeCalculator is Ownable {
 
         // Add alignment bonus based on base stats
         // Only apply alignment bonus if the stat is strictly greater than others
-        if (state.alignment == Types.Alignment.STRENGTH && 
-            baseStats.strength > baseStats.agility && 
-            baseStats.strength > baseStats.magic) {
+        if (
+            state.alignment == Types.Alignment.STRENGTH && baseStats.strength > baseStats.agility
+                && baseStats.strength > baseStats.magic
+        ) {
             totalBonus += 500; // 5% bonus
-        } else if (state.alignment == Types.Alignment.AGILITY && 
-            baseStats.agility > baseStats.strength && 
-            baseStats.agility > baseStats.magic) {
+        } else if (
+            state.alignment == Types.Alignment.AGILITY && baseStats.agility > baseStats.strength
+                && baseStats.agility > baseStats.magic
+        ) {
             totalBonus += 500;
-        } else if (state.alignment == Types.Alignment.MAGIC && 
-            baseStats.magic > baseStats.strength && 
-            baseStats.magic > baseStats.agility) {
+        } else if (
+            state.alignment == Types.Alignment.MAGIC && baseStats.magic > baseStats.strength
+                && baseStats.magic > baseStats.agility
+        ) {
             totalBonus += 500;
         }
 
@@ -247,7 +245,7 @@ contract AttributeCalculator is Ownable {
     /// @return Array of active provider addresses
     function getActiveProviders() public view returns (address[] memory) {
         uint256 activeCount = 0;
-        
+
         // Count active providers
         for (uint256 i = 0; i < providerList.length; i++) {
             if (providers[providerList[i]]) {
@@ -258,7 +256,7 @@ contract AttributeCalculator is Ownable {
         // Create array of active providers
         address[] memory activeProviders = new address[](activeCount);
         uint256 index = 0;
-        
+
         for (uint256 i = 0; i < providerList.length; i++) {
             if (providers[providerList[i]]) {
                 activeProviders[index] = providerList[i];

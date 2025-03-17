@@ -12,20 +12,21 @@ import "../Character.sol";
 contract Pet is ERC721, Ownable, IAttributeProvider {
     // Pet rarity tiers
     enum Rarity {
-        COMMON,      // 10% boost
-        UNCOMMON,    // 20% boost
-        RARE,       // 30% boost
-        EPIC,       // 40% boost
-        LEGENDARY   // 50% boost
+        COMMON, // 10% boost
+        UNCOMMON, // 20% boost
+        RARE, // 30% boost
+        EPIC, // 40% boost
+        LEGENDARY // 50% boost
+
     }
 
     struct PetData {
         string name;
         string description;
         Rarity rarity;
-        uint256 yieldBoostBps;     // Yield boost in basis points (e.g., 1000 = 10%)
-        uint256 dropRateBoostBps;  // Drop rate boost in basis points
-        uint256 requiredLevel;      // Character level required to own this pet
+        uint256 yieldBoostBps; // Yield boost in basis points (e.g., 1000 = 10%)
+        uint256 dropRateBoostBps; // Drop rate boost in basis points
+        uint256 requiredLevel; // Character level required to own this pet
         bool isActive;
     }
 
@@ -61,7 +62,7 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
 
     constructor(address _characterContract) ERC721("Game Pet", "PET") {
         characterContract = Character(_characterContract);
-        _nextPetTypeId = 1000000;
+        _nextPetTypeId = 1_000_000;
         _nextTokenId = 1;
     }
 
@@ -103,35 +104,35 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
     function mintPet(uint256 characterId, uint256 petTypeId) external {
         // Check if pet type exists and is active
         if (!_exists(petTypeId)) revert PetNotActive(); // Pet type doesn't exist
-        
+
         PetData memory petData = pets[petTypeId];
         if (!petData.isActive) revert PetNotActive();
 
         // Verify ownership and level requirements
         address owner = characterContract.ownerOf(characterId);
         require(msg.sender == owner, "Not character owner");
-        
+
         (,, Types.CharacterState memory state) = characterContract.getCharacter(characterId);
         require(state.level >= petData.requiredLevel, "Insufficient level");
-        
+
         // Check if character already has a pet
         if (_characterHasPet[characterId]) {
             revert AlreadyHasPet();
         }
-        
+
         // Mint the pet to the character's wallet with a new token ID
         address characterWallet = address(characterContract.characterWallets(characterId));
         require(characterWallet != address(0), "Invalid character wallet");
         uint256 tokenId = _nextTokenId++;
         _mint(characterWallet, tokenId);
-        
+
         // Store the mapping between minted token ID and pet type
         _mintedPetToType[tokenId] = petTypeId;
-        
+
         // Assign the pet to the character using the token ID
         characterToPet[characterId] = tokenId;
         _characterHasPet[characterId] = true;
-        
+
         emit PetAssigned(characterId, tokenId);
     }
 
@@ -158,10 +159,10 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
     function hasActivePet(uint256 characterId) public view returns (bool) {
         uint256 tokenId = characterToPet[characterId];
         if (tokenId == 0) return false;
-        
+
         uint256 petTypeId = _mintedPetToType[tokenId];
         if (!_exists(petTypeId)) return false;
-        
+
         address wallet = address(characterContract.characterWallets(characterId));
         return pets[petTypeId].isActive && ownerOf(tokenId) == wallet;
     }
@@ -170,7 +171,7 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
     function getPetBenefits(uint256 characterId) public view returns (uint256 yieldBoost, uint256 dropRateBoost) {
         uint256 tokenId = characterToPet[characterId];
         if (tokenId == 0) return (0, 0);
-        
+
         uint256 petTypeId = _mintedPetToType[tokenId];
         if (!_exists(petTypeId) || !pets[petTypeId].isActive) return (0, 0);
 

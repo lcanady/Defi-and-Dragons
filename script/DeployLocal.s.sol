@@ -14,7 +14,7 @@ contract DeployLocal is Script {
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("ANVIL_PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         vm.startBroadcast(deployerPrivateKey);
 
         // Deploy mock VRF coordinator for local testing
@@ -29,14 +29,7 @@ contract DeployLocal is Script {
         GameToken gameToken = new GameToken();
 
         // Deploy ItemDrop with mock VRF
-        ItemDrop itemDrop = new ItemDrop(
-            address(mockVrf),
-            subId,
-            keyHash,
-            200_000,
-            1,
-            1
-        );
+        ItemDrop itemDrop = new ItemDrop(address(mockVrf), subId, keyHash, 200_000, 1, 1);
         itemDrop.initialize(address(equipment));
 
         // Deploy and initialize Quest
@@ -53,10 +46,10 @@ contract DeployLocal is Script {
         // Setup permissions
         bytes32 MINTER_ROLE = gameToken.MINTER_ROLE();
         gameToken.grantRole(MINTER_ROLE, address(quest));
-        
+
         bytes32 EQUIPMENT_MINTER_ROLE = equipment.MINTER_ROLE();
         equipment.grantRole(EQUIPMENT_MINTER_ROLE, address(itemDrop));
-        
+
         marketplace.updateListingFee(100);
 
         // Add consumer to VRF subscription
@@ -65,15 +58,30 @@ contract DeployLocal is Script {
         vm.stopBroadcast();
 
         // Save deployment info to file
-        string memory deployInfo = string(abi.encodePacked(
-            "EQUIPMENT_ADDRESS=", vm.toString(address(equipment)), "\n",
-            "CHARACTER_ADDRESS=", vm.toString(address(character)), "\n",
-            "GAME_TOKEN_ADDRESS=", vm.toString(address(gameToken)), "\n",
-            "QUEST_ADDRESS=", vm.toString(address(quest)), "\n",
-            "ITEM_DROP_ADDRESS=", vm.toString(address(itemDrop)), "\n",
-            "MARKETPLACE_ADDRESS=", vm.toString(address(marketplace)), "\n",
-            "VRF_COORDINATOR_ADDRESS=", vm.toString(address(mockVrf))
-        ));
+        string memory deployInfo = string(
+            abi.encodePacked(
+                "EQUIPMENT_ADDRESS=",
+                vm.toString(address(equipment)),
+                "\n",
+                "CHARACTER_ADDRESS=",
+                vm.toString(address(character)),
+                "\n",
+                "GAME_TOKEN_ADDRESS=",
+                vm.toString(address(gameToken)),
+                "\n",
+                "QUEST_ADDRESS=",
+                vm.toString(address(quest)),
+                "\n",
+                "ITEM_DROP_ADDRESS=",
+                vm.toString(address(itemDrop)),
+                "\n",
+                "MARKETPLACE_ADDRESS=",
+                vm.toString(address(marketplace)),
+                "\n",
+                "VRF_COORDINATOR_ADDRESS=",
+                vm.toString(address(mockVrf))
+            )
+        );
         vm.writeFile(".env.anvil", deployInfo);
     }
-} 
+}

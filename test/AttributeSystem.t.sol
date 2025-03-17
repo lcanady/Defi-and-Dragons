@@ -33,7 +33,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
     ArcaneCrafting public crafting;
 
     // Constants
-    uint256 public constant BASE_POINTS = 10000;  // 100% in basis points
+    uint256 public constant BASE_POINTS = 10_000; // 100% in basis points
 
     // Events for testing
     event RandomWordsFulfilled(uint256 indexed requestId, uint256[] randomWords);
@@ -55,40 +55,31 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
     uint16 constant _REQUEST_CONFIRMATIONS = 3;
 
     // Implement onERC721Received
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes calldata
-    ) external pure override returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 
     // Implement IERC1155Receiver
-    function onERC1155Received(
-        address,
-        address,
-        uint256,
-        uint256,
-        bytes calldata
-    ) external pure override returns (bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata)
+        external
+        pure
+        override
+        returns (bytes4)
+    {
         return IERC1155Receiver.onERC1155Received.selector;
     }
 
-    function onERC1155BatchReceived(
-        address,
-        address,
-        uint256[] calldata,
-        uint256[] calldata,
-        bytes calldata
-    ) external pure override returns (bytes4) {
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+        external
+        pure
+        override
+        returns (bytes4)
+    {
         return IERC1155Receiver.onERC1155BatchReceived.selector;
     }
 
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
-        return
-            interfaceId == type(IERC1155Receiver).interfaceId ||
-            interfaceId == type(IERC721Receiver).interfaceId;
+        return interfaceId == type(IERC1155Receiver).interfaceId || interfaceId == type(IERC721Receiver).interfaceId;
     }
 
     // Helper function to deploy core contracts
@@ -97,17 +88,14 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
         equipment = new Equipment();
         character = new Character(address(equipment));
         equipment.setCharacterContract(address(character));
-        
+
         // Deploy providers
         pet = new Pet(address(character));
         mount = new Mount(address(character));
         ability = new Ability(address(character));
-        
+
         // Deploy calculator
-        calculator = new AttributeCalculator(
-            address(character),
-            address(equipment)
-        );
+        calculator = new AttributeCalculator(address(character), address(equipment));
 
         // Set up provider permissions and add to calculator
         vm.startPrank(owner);
@@ -123,16 +111,10 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
 
     // Helper function to deploy and setup VRF system
     function setupVRFSystem() private {
-        vrfCoordinator = new VRFCoordinatorV2Mock(
-            0.1 ether,
-            1e9
-        );
+        vrfCoordinator = new VRFCoordinatorV2Mock(0.1 ether, 1e9);
 
         vrfCoordinator.createSubscription();
-        vrfCoordinator.fundSubscription(
-            _SUBSCRIPTION_ID,
-            100 ether
-        );
+        vrfCoordinator.fundSubscription(_SUBSCRIPTION_ID, 100 ether);
 
         itemDrop = new ItemDrop(
             address(vrfCoordinator),
@@ -143,10 +125,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
             _NUM_WORDS
         );
 
-        vrfCoordinator.addConsumer(
-            _SUBSCRIPTION_ID,
-            address(itemDrop)
-        );
+        vrfCoordinator.addConsumer(_SUBSCRIPTION_ID, address(itemDrop));
 
         itemDrop.initialize(address(equipment));
     }
@@ -158,7 +137,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
             "A basic weapon",
             5, // strength bonus
             3, // agility bonus
-            2  // magic bonus
+            2 // magic bonus
         );
 
         armorId = equipment.createEquipment(
@@ -166,7 +145,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
             "Basic armor",
             3, // strength bonus
             4, // agility bonus
-            1  // magic bonus
+            1 // magic bonus
         );
 
         address walletAddress = address(character.characterWallets(characterId));
@@ -205,14 +184,10 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
 
     // Helper function to create a character with specified level
     function createTestCharacter(uint256 level) private {
-        baseStats = Types.Stats({
-            strength: 10,
-            agility: 8,
-            magic: 6
-        });
+        baseStats = Types.Stats({ strength: 10, agility: 8, magic: 6 });
 
         characterId = character.mintCharacter(
-            user,  // Mint to user
+            user, // Mint to user
             baseStats,
             Types.Alignment.STRENGTH
         );
@@ -239,11 +214,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
         deployContracts();
         setupVRFSystem();
 
-        crafting = new ArcaneCrafting(
-            address(character),
-            address(equipment),
-            address(itemDrop)
-        );
+        crafting = new ArcaneCrafting(address(character), address(equipment), address(itemDrop));
 
         createTestCharacter(10);
         setupApprovals();
@@ -282,13 +253,13 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
             1500, // 15% drop rate boost
             1 // Level 1 required
         );
-        assertEq(petId, 1000000, "Incorrect initial pet ID");
+        assertEq(petId, 1_000_000, "Incorrect initial pet ID");
         vm.stopPrank();
 
         vm.startPrank(user);
         pet.mintPet(characterId, petId);
         assertTrue(pet.hasActivePet(characterId), "Pet should be active");
-        
+
         // Check benefits
         (uint256 yieldBoost, uint256 dropBoost) = pet.getPetBenefits(characterId);
         assertEq(yieldBoost, 2000, "Incorrect yield boost");
@@ -315,21 +286,17 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
             1000, // 10% LP lock reduction
             1 // Level 1 required
         );
-        assertEq(mountId, 2000000, "Incorrect initial mount ID");
+        assertEq(mountId, 2_000_000, "Incorrect initial mount ID");
         vm.stopPrank();
 
         vm.startPrank(user);
         mount.mintMount(characterId, mountId);
         assertTrue(mount.hasActiveMount(characterId), "Mount should be active");
-        
+
         // Check benefits
-        (
-            uint256 questFeeReduction,
-            uint256 travelReduction,
-            uint256 stakingBoost,
-            uint256 lockReduction
-        ) = mount.getMountBenefits(characterId);
-        
+        (uint256 questFeeReduction, uint256 travelReduction, uint256 stakingBoost, uint256 lockReduction) =
+            mount.getMountBenefits(characterId);
+
         assertEq(questFeeReduction, 1000, "Incorrect quest fee reduction");
         assertEq(travelReduction, 12 hours, "Incorrect travel reduction");
         assertEq(stakingBoost, 1500, "Incorrect staking boost");
@@ -356,7 +323,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
             1000, // 10% LP lock reduction
             1 // Level 1 required
         );
-        assertEq(mountId, 2000000, "Incorrect initial mount ID");
+        assertEq(mountId, 2_000_000, "Incorrect initial mount ID");
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -378,7 +345,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
                 string(abi.encodePacked("A test item #", i.toString())),
                 5, // strength bonus
                 0, // agility bonus
-                0  // magic bonus
+                0 // magic bonus
             );
         }
         vm.stopPrank();
@@ -404,9 +371,9 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
 
         // Start recording logs
         vm.recordLogs();
-        
+
         vrfCoordinator.fulfillRandomWordsWithOverride(requestId, address(itemDrop), randomWords);
-        
+
         (,, bool fulfilled) = itemDrop.dropRequests(requestId);
         assertTrue(fulfilled, "Request should be fulfilled");
 
@@ -437,7 +404,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
 
         // Create items as owner
         vm.startPrank(owner);
-        
+
         // Create and mint pet for yield boost
         uint256 petId = pet.createPet(
             "Yield Pet",
@@ -447,7 +414,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
             0, // No drop rate boost
             1 // Level 1 required
         );
-        assertEq(petId, 1000000, "Incorrect initial pet ID");
+        assertEq(petId, 1_000_000, "Incorrect initial pet ID");
 
         // Create and mint mount for staking boost
         uint256 mountId = mount.createMount(
@@ -464,7 +431,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
             0, // No LP lock reduction
             1 // Level 1 required
         );
-        assertEq(mountId, 2000000, "Incorrect initial mount ID");
+        assertEq(mountId, 2_000_000, "Incorrect initial mount ID");
 
         // Create and learn ability for crafting boost
         uint256 abilityId = ability.createAbility(
@@ -494,10 +461,14 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
         assertEq(ability.getBonus(characterId), 4000, "Ability bonus should be 40%");
 
         // Calculate total bonuses
-        (,uint256 bonusMultiplier) = calculator.calculateTotalAttributes(characterId);
+        (, uint256 bonusMultiplier) = calculator.calculateTotalAttributes(characterId);
         uint256 totalBonus = bonusMultiplier - BASE_POINTS;
-        assertEq(totalBonus, 13500, "Combined bonus should be 135% (40% pet + 40% mount + 40% ability + 10% level + 5% alignment)");
-        
+        assertEq(
+            totalBonus,
+            13_500,
+            "Combined bonus should be 135% (40% pet + 40% mount + 40% ability + 10% level + 5% alignment)"
+        );
+
         vm.stopPrank();
     }
 }

@@ -212,11 +212,11 @@ contract AMMTest is Test {
     function testPairSorting() public {
         // Create pair with tokens in one order
         address pair1 = factory.createPair(address(gameToken), address(stableToken));
-        
+
         // Try to create pair with tokens in reverse order - should revert
         vm.expectRevert("PAIR_EXISTS");
         factory.createPair(address(stableToken), address(gameToken));
-        
+
         // Verify the pair exists and is the same
         address existingPair = factory.getPair(address(stableToken), address(gameToken));
         assertEq(existingPair, pair1, "Pairs should be identical regardless of token order");
@@ -227,15 +227,15 @@ contract AMMTest is Test {
         // Create pair and add liquidity
         factory.createPair(address(gameToken), address(stableToken));
         vm.startPrank(user1);
-        (uint256 amountA, uint256 amountB, uint256 liquidity) = 
+        (uint256 amountA, uint256 amountB, uint256 liquidity) =
             router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 0, 0, user1);
-        
+
         // Approve LP tokens to router
         address pair = factory.getPair(address(gameToken), address(stableToken));
         ArcanePair(pair).approve(address(router), liquidity);
 
         // Remove liquidity
-        (uint256 returnedA, uint256 returnedB) = 
+        (uint256 returnedA, uint256 returnedB) =
             router.removeLiquidity(address(gameToken), address(stableToken), liquidity, 0, 0, user1);
         vm.stopPrank();
 
@@ -294,7 +294,7 @@ contract AMMTest is Test {
     function testMultiUserStaking() public {
         // Setup staking pool
         factory.createPair(address(gameToken), address(stableToken));
-        
+
         // User1 adds liquidity and stakes
         vm.startPrank(user1);
         router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 0, 0, user1);
@@ -325,12 +325,12 @@ contract AMMTest is Test {
 
         // Mine blocks and check rewards
         vm.roll(block.number + 10);
-        
+
         // Account for potential rounding errors with a small tolerance
         uint256 user1Reward = staking.pendingReward(0, user1);
         uint256 user2Reward = staking.pendingReward(0, user2);
         uint256 tolerance = 1e15; // 0.001%
-        
+
         assertGt(user1Reward, 0, "User1 should have rewards");
         assertGt(user2Reward, 0, "User2 should have rewards");
         assertApproxEqAbs(user1Reward, user2Reward, tolerance, "Users should have equal rewards for equal stakes");
@@ -361,7 +361,7 @@ contract AMMTest is Test {
     function testEnhancedDropRates() public {
         // Setup LP pair and drop rate bonus
         address pair = factory.createPair(address(gameToken), address(stableToken));
-        
+
         vm.startPrank(owner);
         questIntegration.setLPPairEligibility(pair, true);
         questIntegration.setLPDropRateBonus(pair, 5000); // 50% bonus

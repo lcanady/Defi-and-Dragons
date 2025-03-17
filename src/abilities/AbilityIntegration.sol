@@ -29,12 +29,7 @@ contract AbilityIntegration is Ownable {
         uint256 vrfReduction
     );
 
-    constructor(
-        address _abilityContract,
-        address _craftingContract,
-        address _factory,
-        address _itemDrop
-    ) {
+    constructor(address _abilityContract, address _craftingContract, address _factory, address _itemDrop) {
         _transferOwnership(msg.sender);
         abilityContract = Ability(_abilityContract);
         craftingContract = ArcaneCrafting(_craftingContract);
@@ -46,7 +41,7 @@ contract AbilityIntegration is Ownable {
     /// @param characterId ID of the character
     /// @return Reduced fee in basis points
     function calculateAMMFeeReduction(uint256 characterId) external view returns (uint256) {
-        (uint256 feeReduction, , , ) = abilityContract.getAbilityBenefits(characterId);
+        (uint256 feeReduction,,,) = abilityContract.getAbilityBenefits(characterId);
         return feeReduction;
     }
 
@@ -54,7 +49,7 @@ contract AbilityIntegration is Ownable {
     /// @param characterId ID of the character
     /// @return Success boost in basis points
     function calculateCraftingBoost(uint256 characterId) external view returns (uint256) {
-        (, uint256 craftingBoost, , ) = abilityContract.getAbilityBenefits(characterId);
+        (, uint256 craftingBoost,,) = abilityContract.getAbilityBenefits(characterId);
         return craftingBoost;
     }
 
@@ -62,7 +57,7 @@ contract AbilityIntegration is Ownable {
     /// @param characterId ID of the character
     /// @return Cost reduction in basis points
     function calculateVRFReduction(uint256 characterId) external view returns (uint256) {
-        (, , uint256 vrfReduction, ) = abilityContract.getAbilityBenefits(characterId);
+        (,, uint256 vrfReduction,) = abilityContract.getAbilityBenefits(characterId);
         return vrfReduction;
     }
 
@@ -71,9 +66,9 @@ contract AbilityIntegration is Ownable {
     /// @param _recipeId ID of the recipe being crafted
     /// @return (success boost, fee reduction)
     function applyCraftingBenefits(uint256 characterId, uint256 _recipeId) external view returns (uint256, uint256) {
-        (, uint256 craftingBoost, , ) = abilityContract.getAbilityBenefits(characterId);
-        (uint256 feeReduction, , , ) = abilityContract.getAbilityBenefits(characterId);
-        
+        (, uint256 craftingBoost,,) = abilityContract.getAbilityBenefits(characterId);
+        (uint256 feeReduction,,,) = abilityContract.getAbilityBenefits(characterId);
+
         return (craftingBoost, feeReduction);
     }
 
@@ -81,7 +76,7 @@ contract AbilityIntegration is Ownable {
     /// @param characterId ID of the character
     /// @return Fee reduction in basis points
     function applyAMMBenefits(uint256 characterId) external view returns (uint256) {
-        (uint256 feeReduction, , , ) = abilityContract.getAbilityBenefits(characterId);
+        (uint256 feeReduction,,,) = abilityContract.getAbilityBenefits(characterId);
         return feeReduction;
     }
 
@@ -89,7 +84,7 @@ contract AbilityIntegration is Ownable {
     /// @param characterId ID of the character
     /// @return Cost reduction in basis points
     function applyVRFBenefits(uint256 characterId) external view returns (uint256) {
-        (, , uint256 vrfReduction, ) = abilityContract.getAbilityBenefits(characterId);
+        (,, uint256 vrfReduction,) = abilityContract.getAbilityBenefits(characterId);
         return vrfReduction;
     }
 
@@ -99,4 +94,4 @@ contract AbilityIntegration is Ownable {
     function canUseAbility(uint256 characterId) external view returns (bool) {
         return abilityContract.hasActiveAbility(characterId);
     }
-} 
+}

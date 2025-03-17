@@ -75,10 +75,10 @@ contract ItemDrop is VRFConsumerBaseV2, Ownable {
 
         // Mark as fulfilled first to prevent reentrancy
         request.fulfilled = true;
-        
+
         // Store random words
         requestToRandomWords[requestId] = randomWords;
-        
+
         // Emit fulfillment event
         emit RandomWordsFulfilled(requestId, randomWords);
 
@@ -86,7 +86,7 @@ contract ItemDrop is VRFConsumerBaseV2, Ownable {
         require(address(equipment) != address(0), "Equipment contract not initialized");
         for (uint256 i = 0; i < randomWords.length; i++) {
             uint256 rand = randomWords[i];
-            
+
             // For testing, we always drop an item
             uint256 itemId = (rand % 5) + 1; // Items 1-5
             uint256 amount = 1;
@@ -98,7 +98,7 @@ contract ItemDrop is VRFConsumerBaseV2, Ownable {
 
             // Mint the item to the player
             equipment.mint(request.player, itemId, amount, "");
-            
+
             // Emit the drop event
             emit ItemDropped(request.player, itemId, amount);
         }

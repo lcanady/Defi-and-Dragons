@@ -13,7 +13,7 @@ contract TestHelper is Test {
             "A test weapon",
             5, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         equipment.createEquipment(
@@ -21,7 +21,7 @@ contract TestHelper is Test {
             "A test armor",
             0, // strength bonus
             5, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
     }
 

@@ -24,7 +24,7 @@ contract CharacterTest is Test {
             "A test weapon",
             5, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         equipment.createEquipment(
@@ -32,20 +32,13 @@ contract CharacterTest is Test {
             "A test armor",
             0, // strength bonus
             5, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
     }
 
     function testMintCharacter() public {
-        uint256 tokenId = character.mintCharacter(
-            user,
-            Types.Stats({
-                strength: 10,
-                agility: 8,
-                magic: 6
-            }),
-            Types.Alignment.STRENGTH
-        );
+        uint256 tokenId =
+            character.mintCharacter(user, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH);
 
         assertEq(character.ownerOf(tokenId), user, "Character owner should be user");
         (Types.Stats memory stats,,) = character.getCharacter(tokenId);
@@ -56,15 +49,8 @@ contract CharacterTest is Test {
 
     function testEquipItems() public {
         // Mint character
-        uint256 tokenId = character.mintCharacter(
-            user,
-            Types.Stats({
-                strength: 10,
-                agility: 8,
-                magic: 6
-            }),
-            Types.Alignment.STRENGTH
-        );
+        uint256 tokenId =
+            character.mintCharacter(user, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH);
 
         // Get the character's wallet
         address walletAddress = address(character.characterWallets(tokenId));
@@ -80,22 +66,15 @@ contract CharacterTest is Test {
         vm.stopPrank();
 
         // Check equipped items
-        (,Types.EquipmentSlots memory equippedItems,) = character.getCharacter(tokenId);
+        (, Types.EquipmentSlots memory equippedItems,) = character.getCharacter(tokenId);
         assertEq(equippedItems.weaponId, 0, "Incorrect weapon ID");
         assertEq(equippedItems.armorId, 1, "Incorrect armor ID");
     }
 
     function testUnequipItems() public {
         // Mint character
-        uint256 tokenId = character.mintCharacter(
-            user,
-            Types.Stats({
-                strength: 10,
-                agility: 8,
-                magic: 6
-            }),
-            Types.Alignment.STRENGTH
-        );
+        uint256 tokenId =
+            character.mintCharacter(user, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH);
 
         // Get the character's wallet
         address walletAddress = address(character.characterWallets(tokenId));
@@ -112,29 +91,18 @@ contract CharacterTest is Test {
         vm.stopPrank();
 
         // Check unequipped items
-        (,Types.EquipmentSlots memory equippedItems,) = character.getCharacter(tokenId);
+        (, Types.EquipmentSlots memory equippedItems,) = character.getCharacter(tokenId);
         assertEq(equippedItems.weaponId, 0, "Weapon should be unequipped");
         assertEq(equippedItems.armorId, 0, "Armor should be unequipped");
     }
 
     function testUpdateStats() public {
         // Mint character
-        uint256 tokenId = character.mintCharacter(
-            user,
-            Types.Stats({
-                strength: 10,
-                agility: 8,
-                magic: 6
-            }),
-            Types.Alignment.STRENGTH
-        );
+        uint256 tokenId =
+            character.mintCharacter(user, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH);
 
         // Update stats
-        Types.Stats memory newStats = Types.Stats({
-            strength: 15,
-            agility: 12,
-            magic: 9
-        });
+        Types.Stats memory newStats = Types.Stats({ strength: 15, agility: 12, magic: 9 });
         character.updateStats(tokenId, newStats);
 
         // Check updated stats
@@ -146,15 +114,8 @@ contract CharacterTest is Test {
 
     function testUpdateState() public {
         // Mint character
-        uint256 tokenId = character.mintCharacter(
-            user,
-            Types.Stats({
-                strength: 10,
-                agility: 8,
-                magic: 6
-            }),
-            Types.Alignment.STRENGTH
-        );
+        uint256 tokenId =
+            character.mintCharacter(user, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH);
 
         // Update state
         Types.CharacterState memory newState = Types.CharacterState({
@@ -179,27 +140,14 @@ contract CharacterTest is Test {
 
     function testFailMintToZeroAddress() public {
         character.mintCharacter(
-            address(0),
-            Types.Stats({
-                strength: 10,
-                agility: 8,
-                magic: 6
-            }),
-            Types.Alignment.STRENGTH
+            address(0), Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH
         );
     }
 
     function testFailEquipUnauthorized() public {
         // Mint character
-        uint256 tokenId = character.mintCharacter(
-            user,
-            Types.Stats({
-                strength: 10,
-                agility: 8,
-                magic: 6
-            }),
-            Types.Alignment.STRENGTH
-        );
+        uint256 tokenId =
+            character.mintCharacter(user, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH);
 
         // Try to equip items as non-owner
         character.equip(tokenId, 0, 1);
@@ -207,15 +155,8 @@ contract CharacterTest is Test {
 
     function testFailUnequipUnauthorized() public {
         // Mint character
-        uint256 tokenId = character.mintCharacter(
-            user,
-            Types.Stats({
-                strength: 10,
-                agility: 8,
-                magic: 6
-            }),
-            Types.Alignment.STRENGTH
-        );
+        uint256 tokenId =
+            character.mintCharacter(user, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH);
 
         // Try to unequip items as non-owner
         character.unequip(tokenId, true, true);

@@ -21,9 +21,7 @@ contract MockAttributeProvider is IAttributeProvider {
     /// @return The bonus value in basis points (10000 = 100%)
     function getBonus(uint256 characterId) external view override returns (uint256) {
         // Return character-specific bonus if set, otherwise return default
-        return _characterBonuses[characterId] == 0 
-            ? _defaultBonus 
-            : _characterBonuses[characterId];
+        return _characterBonuses[characterId] == 0 ? _defaultBonus : _characterBonuses[characterId];
     }
 
     /// @notice Check if bonus is active for a character
@@ -71,15 +69,9 @@ contract MockAttributeProvider is IAttributeProvider {
     /// @notice Batch set bonuses for multiple characters
     /// @param characterIds Array of character IDs
     /// @param bonuses Array of bonus values
-    function batchSetCharacterBonuses(
-        uint256[] calldata characterIds,
-        uint256[] calldata bonuses
-    ) external {
-        require(
-            characterIds.length == bonuses.length,
-            "MockAttributeProvider: Array lengths must match"
-        );
-        
+    function batchSetCharacterBonuses(uint256[] calldata characterIds, uint256[] calldata bonuses) external {
+        require(characterIds.length == bonuses.length, "MockAttributeProvider: Array lengths must match");
+
         for (uint256 i = 0; i < characterIds.length; i++) {
             _characterBonuses[characterIds[i]] = bonuses[i];
         }

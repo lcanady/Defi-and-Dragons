@@ -60,7 +60,12 @@ contract Equipment is ERC1155, Ownable, IEquipment {
         return tokenId;
     }
 
-    function getEquipmentStats(uint256 tokenId) external view override returns (Types.EquipmentStats memory stats, bool exists) {
+    function getEquipmentStats(uint256 tokenId)
+        external
+        view
+        override
+        returns (Types.EquipmentStats memory stats, bool exists)
+    {
         stats = equipmentStats[tokenId];
         exists = _exists[tokenId];
         return (stats, exists);
@@ -80,22 +85,21 @@ contract Equipment is ERC1155, Ownable, IEquipment {
         return specialAbilities[equipmentId];
     }
 
-    function updateAbilityCooldown(
-        uint256 characterId,
-        uint256 equipmentId,
-        uint256 abilityIndex,
-        uint256 currentRound
-    ) external override onlyCharacterContract {
+    function updateAbilityCooldown(uint256 characterId, uint256 equipmentId, uint256 abilityIndex, uint256 currentRound)
+        external
+        override
+        onlyCharacterContract
+    {
         require(abilityIndex < specialAbilities[equipmentId].length, "Invalid ability index");
         abilityCooldowns[characterId][equipmentId][abilityIndex] = currentRound;
     }
 
-    function checkTriggerCondition(
-        uint256 characterId,
-        uint256 equipmentId,
-        uint256 abilityIndex,
-        uint256 currentRound
-    ) external view override returns (bool) {
+    function checkTriggerCondition(uint256 characterId, uint256 equipmentId, uint256 abilityIndex, uint256 currentRound)
+        external
+        view
+        override
+        returns (bool)
+    {
         require(abilityIndex < specialAbilities[equipmentId].length, "Invalid ability index");
         Types.SpecialAbility memory ability = specialAbilities[equipmentId][abilityIndex];
         uint256 lastUsed = abilityCooldowns[characterId][equipmentId][abilityIndex];
@@ -109,7 +113,7 @@ contract Equipment is ERC1155, Ownable, IEquipment {
         returns (uint8 strengthBonus, uint8 agilityBonus, uint8 magicBonus)
     {
         // Get equipped items from character contract
-        (,Types.EquipmentSlots memory equipment,) = ICharacter(_characterContract).getCharacter(characterId);
+        (, Types.EquipmentSlots memory equipment,) = ICharacter(_characterContract).getCharacter(characterId);
 
         // Calculate bonuses from weapon
         if (equipment.weaponId != 0) {
@@ -141,14 +145,14 @@ contract Equipment is ERC1155, Ownable, IEquipment {
         if (!_exists[equipmentId]) {
             revert("Equipment does not exist");
         }
-        
+
         Types.EquipmentStats storage stats = equipmentStats[equipmentId];
-        
+
         // Check if equipment has any bonuses
         if (stats.strengthBonus == 0 && stats.agilityBonus == 0 && stats.magicBonus == 0) {
             revert("Equipment does not exist");
         }
-        
+
         stats.isActive = false;
         emit EquipmentDeactivated(equipmentId);
     }
@@ -160,14 +164,14 @@ contract Equipment is ERC1155, Ownable, IEquipment {
         if (!_exists[equipmentId]) {
             revert("Equipment does not exist");
         }
-        
+
         Types.EquipmentStats storage stats = equipmentStats[equipmentId];
-        
+
         // Check if equipment has any bonuses
         if (stats.strengthBonus == 0 && stats.agilityBonus == 0 && stats.magicBonus == 0) {
             revert("Equipment does not exist");
         }
-        
+
         stats.isActive = true;
         emit EquipmentActivated(equipmentId);
     }
@@ -178,8 +182,11 @@ contract Equipment is ERC1155, Ownable, IEquipment {
     }
 
     function mint(address to, uint256 id, uint256 amount, bytes memory data) external override {
-        require(msg.sender == owner() || msg.sender == _characterContract || msg.sender == _itemDrop, "Not authorized to mint");
-        
+        require(
+            msg.sender == owner() || msg.sender == _characterContract || msg.sender == _itemDrop,
+            "Not authorized to mint"
+        );
+
         // Check if equipment is active
         if (_exists[id]) {
             Types.EquipmentStats memory stats = equipmentStats[id];
@@ -187,11 +194,17 @@ contract Equipment is ERC1155, Ownable, IEquipment {
                 revert("Equipment not active");
             }
         }
-        
+
         _mint(to, id, amount, data);
     }
 
-    function balanceOf(address account, uint256 id) public view virtual override(ERC1155, IEquipment) returns (uint256) {
+    function balanceOf(address account, uint256 id)
+        public
+        view
+        virtual
+        override(ERC1155, IEquipment)
+        returns (uint256)
+    {
         return super.balanceOf(account, id);
     }
 

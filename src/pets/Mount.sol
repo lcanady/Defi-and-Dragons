@@ -19,13 +19,17 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
     error NoMountAssigned();
 
     // Constants for maximum boost values (in basis points)
-    uint256 public constant MAX_SPEED_BOOST = 5000;    // 50%
-    uint256 public constant MAX_STAMINA_BOOST = 5000;  // 50%
-    uint256 public constant MAX_YIELD_BOOST = 5000;    // 50%
-    uint256 public constant MAX_DROP_BOOST = 5000;     // 50%
+    uint256 public constant MAX_SPEED_BOOST = 5000; // 50%
+    uint256 public constant MAX_STAMINA_BOOST = 5000; // 50%
+    uint256 public constant MAX_YIELD_BOOST = 5000; // 50%
+    uint256 public constant MAX_DROP_BOOST = 5000; // 50%
 
     // Mount types
-    enum MountType { LAND, SEA, AIR }
+    enum MountType {
+        LAND,
+        SEA,
+        AIR
+    }
 
     struct MountData {
         string name;
@@ -52,10 +56,10 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
     Character public immutable characterContract;
 
     // Constants
-    uint256 public constant MAX_FEE_REDUCTION = 5000;    // 50% in basis points
+    uint256 public constant MAX_FEE_REDUCTION = 5000; // 50% in basis points
     uint256 public constant MAX_TRAVEL_REDUCTION = 1 days;
-    uint256 public constant MAX_STAKING_BOOST = 5000;    // 50% in basis points
-    uint256 public constant MAX_LOCK_REDUCTION = 5000;   // 50% in basis points
+    uint256 public constant MAX_STAKING_BOOST = 5000; // 50% in basis points
+    uint256 public constant MAX_LOCK_REDUCTION = 5000; // 50% in basis points
 
     // Events
     event MountCreated(uint256 indexed mountId, string name, MountType mountType);
@@ -66,7 +70,7 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
 
     constructor(address _characterContract) ERC721("Game Mount", "MOUNT") {
         characterContract = Character(_characterContract);
-        _nextMountId = 2000000;
+        _nextMountId = 2_000_000;
     }
 
     /// @notice Create a new mount type
@@ -98,14 +102,12 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
         uint256 requiredLevel
     ) external onlyOwner returns (uint256) {
         // Validate boost values
-        if (speedBoost > MAX_SPEED_BOOST ||
-            staminaBoost > MAX_STAMINA_BOOST ||
-            yieldBoost > MAX_YIELD_BOOST ||
-            dropRateBoost > MAX_DROP_BOOST ||
-            questFeeReduction > MAX_FEE_REDUCTION ||
-            travelTimeReduction > MAX_TRAVEL_REDUCTION ||
-            stakingBoostBps > MAX_STAKING_BOOST ||
-            lpLockReductionBps > MAX_LOCK_REDUCTION) {
+        if (
+            speedBoost > MAX_SPEED_BOOST || staminaBoost > MAX_STAMINA_BOOST || yieldBoost > MAX_YIELD_BOOST
+                || dropRateBoost > MAX_DROP_BOOST || questFeeReduction > MAX_FEE_REDUCTION
+                || travelTimeReduction > MAX_TRAVEL_REDUCTION || stakingBoostBps > MAX_STAKING_BOOST
+                || lpLockReductionBps > MAX_LOCK_REDUCTION
+        ) {
             revert BoostTooHigh();
         }
 
@@ -123,7 +125,7 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
             yieldBoost: yieldBoost,
             dropRateBoost: dropRateBoost,
             requiredLevel: requiredLevel,
-            isActive: true,  // Set to true by default
+            isActive: true, // Set to true by default
             questFeeReduction: questFeeReduction,
             travelTimeReduction: travelTimeReduction,
             stakingBoostBps: stakingBoostBps,
@@ -233,22 +235,21 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
     }
 
     /// @notice Get mount benefits for a character
-    function getMountBenefits(uint256 characterId) public view returns (
-        uint256 questFeeReduction,
-        uint256 travelTimeReduction,
-        uint256 stakingBoostBps,
-        uint256 lpLockReductionBps
-    ) {
+    function getMountBenefits(uint256 characterId)
+        public
+        view
+        returns (
+            uint256 questFeeReduction,
+            uint256 travelTimeReduction,
+            uint256 stakingBoostBps,
+            uint256 lpLockReductionBps
+        )
+    {
         if (!hasActiveMount(characterId)) return (0, 0, 0, 0);
 
         uint256 mountId = characterToMount[characterId];
         MountData memory mount = mounts[mountId];
-        return (
-            mount.questFeeReduction,
-            mount.travelTimeReduction,
-            mount.stakingBoostBps,
-            mount.lpLockReductionBps
-        );
+        return (mount.questFeeReduction, mount.travelTimeReduction, mount.stakingBoostBps, mount.lpLockReductionBps);
     }
 
     /// @notice Get a mount's type
@@ -291,9 +292,6 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
         }
 
         MountData memory mount = mounts[mountId];
-        return Types.AttributeBonuses(
-            mount.yieldBoost,
-            mount.dropRateBoost
-        );
+        return Types.AttributeBonuses(mount.yieldBoost, mount.dropRateBoost);
     }
 }

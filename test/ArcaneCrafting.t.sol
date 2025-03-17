@@ -14,14 +14,14 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 // Mock LP Token for testing
 contract MockLPToken is ERC20 {
     constructor() ERC20("Mock LP Token", "MLPT") {
-        _mint(msg.sender, 1000000 * 10**18);
+        _mint(msg.sender, 1_000_000 * 10 ** 18);
     }
 }
 
 // Mock Resource Token for testing
 contract MockResourceToken is ERC20 {
     constructor() ERC20("Mock Resource", "MRSC") {
-        _mint(msg.sender, 1000000 * 10**18);
+        _mint(msg.sender, 1_000_000 * 10 ** 18);
     }
 }
 
@@ -63,10 +63,7 @@ contract ArcaneCraftingTest is Test {
 
         // Create VRF subscription
         uint64 subId = vrfCoordinator.createSubscription();
-        vrfCoordinator.fundSubscription(
-            _SUBSCRIPTION_ID,
-            100 ether
-        );
+        vrfCoordinator.fundSubscription(_SUBSCRIPTION_ID, 100 ether);
 
         // Deploy contracts
         factory = new ArcaneFactory();
@@ -84,17 +81,10 @@ contract ArcaneCraftingTest is Test {
         itemDrop.initialize(address(equipment));
 
         // Add ItemDrop as consumer
-        vrfCoordinator.addConsumer(
-            _SUBSCRIPTION_ID,
-            address(itemDrop)
-        );
+        vrfCoordinator.addConsumer(_SUBSCRIPTION_ID, address(itemDrop));
 
         // Deploy crafting system
-        crafting = new ArcaneCrafting(
-            address(factory),
-            address(equipment),
-            address(itemDrop)
-        );
+        crafting = new ArcaneCrafting(address(factory), address(equipment), address(itemDrop));
 
         // Setup permissions
         equipment.setCharacterContract(address(crafting));
@@ -106,29 +96,29 @@ contract ArcaneCraftingTest is Test {
                 string(abi.encodePacked("A test item #", i.toString())),
                 5, // strength bonus
                 0, // agility bonus
-                0  // magic bonus
+                0 // magic bonus
             );
         }
 
         // Setup test user
         vm.startPrank(owner);
-        lpToken.transfer(user, 1000 * 10**18);
-        resourceToken.transfer(user, 1000 * 10**18);
+        lpToken.transfer(user, 1000 * 10 ** 18);
+        resourceToken.transfer(user, 1000 * 10 ** 18);
         vm.stopPrank();
     }
 
     function testCreateRecipe() public {
         address[] memory resources = new address[](1);
         resources[0] = address(resourceToken);
-        
+
         uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 100 * 10**18;
+        amounts[0] = 100 * 10 ** 18;
 
         crafting.createRecipe(
             1, // recipeId
             1, // resultingItemId
             address(lpToken),
-            50 * 10**18, // lpTokenAmount
+            50 * 10 ** 18, // lpTokenAmount
             resources,
             amounts,
             1 hours // cooldown
@@ -138,9 +128,9 @@ contract ArcaneCraftingTest is Test {
         assertEq(recipe.recipeId, 1);
         assertEq(recipe.resultingItemId, 1);
         assertEq(recipe.lpToken, address(lpToken));
-        assertEq(recipe.lpTokenAmount, 50 * 10**18);
+        assertEq(recipe.lpTokenAmount, 50 * 10 ** 18);
         assertEq(recipe.resources[0], address(resourceToken));
-        assertEq(recipe.resourceAmounts[0], 100 * 10**18);
+        assertEq(recipe.resourceAmounts[0], 100 * 10 ** 18);
         assertEq(recipe.cooldown, 1 hours);
         assertTrue(recipe.isActive);
     }
@@ -149,15 +139,15 @@ contract ArcaneCraftingTest is Test {
         // Create recipe
         address[] memory resources = new address[](1);
         resources[0] = address(resourceToken);
-        
+
         uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 100 * 10**18;
+        amounts[0] = 100 * 10 ** 18;
 
         crafting.createRecipe(
             1, // recipeId
             1, // resultingItemId
             address(lpToken),
-            50 * 10**18, // lpTokenAmount
+            50 * 10 ** 18, // lpTokenAmount
             resources,
             amounts,
             1 hours // cooldown
@@ -173,8 +163,8 @@ contract ArcaneCraftingTest is Test {
 
         // Verify results
         assertEq(equipment.balanceOf(user, 1), 1);
-        assertEq(lpToken.balanceOf(user), 950 * 10**18);
-        assertEq(resourceToken.balanceOf(user), 900 * 10**18);
+        assertEq(lpToken.balanceOf(user), 950 * 10 ** 18);
+        assertEq(resourceToken.balanceOf(user), 900 * 10 ** 18);
         vm.stopPrank();
     }
 
@@ -182,15 +172,15 @@ contract ArcaneCraftingTest is Test {
         // Create recipe
         address[] memory resources = new address[](1);
         resources[0] = address(resourceToken);
-        
+
         uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 100 * 10**18;
+        amounts[0] = 100 * 10 ** 18;
 
         crafting.createRecipe(
             1, // recipeId
             1, // resultingItemId
             address(lpToken),
-            50 * 10**18, // lpTokenAmount
+            50 * 10 ** 18, // lpTokenAmount
             resources,
             amounts,
             1 hours // cooldown
@@ -220,15 +210,15 @@ contract ArcaneCraftingTest is Test {
         // Create recipe
         address[] memory resources = new address[](1);
         resources[0] = address(resourceToken);
-        
+
         uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 2000 * 10**18; // More than user has
+        amounts[0] = 2000 * 10 ** 18; // More than user has
 
         crafting.createRecipe(
             1, // recipeId
             1, // resultingItemId
             address(lpToken),
-            50 * 10**18, // lpTokenAmount
+            50 * 10 ** 18, // lpTokenAmount
             resources,
             amounts,
             1 hours // cooldown
@@ -257,15 +247,15 @@ contract ArcaneCraftingTest is Test {
         // Create recipe
         address[] memory resources = new address[](1);
         resources[0] = address(resourceToken);
-        
+
         uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 100 * 10**18;
+        amounts[0] = 100 * 10 ** 18;
 
         crafting.createRecipe(
             1, // recipeId
             1, // resultingItemId
             address(lpToken),
-            50 * 10**18, // lpTokenAmount
+            50 * 10 ** 18, // lpTokenAmount
             resources,
             amounts,
             1 hours // cooldown
@@ -285,4 +275,4 @@ contract ArcaneCraftingTest is Test {
         crafting.craftItem(1);
         vm.stopPrank();
     }
-} 
+}

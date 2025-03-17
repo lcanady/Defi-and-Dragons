@@ -28,9 +28,7 @@ contract PetTest is Test {
 
         // Create test character
         characterId = character.mintCharacter(
-            user,
-            Types.Stats({ strength: 10, agility: 10, magic: 10 }),
-            Types.Alignment.STRENGTH
+            user, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
         );
 
         // Update character level
@@ -55,7 +53,7 @@ contract PetTest is Test {
             1500, // 15% drop rate boost
             1 // Level 1 required
         );
-        assertEq(newPetId, 1000000, "Incorrect pet ID");
+        assertEq(newPetId, 1_000_000, "Incorrect pet ID");
 
         uint256 secondPetId = petContract.createPet(
             "Second Pet",
@@ -65,10 +63,18 @@ contract PetTest is Test {
             2500, // 25% drop rate boost
             5 // Level 5 required
         );
-        assertEq(secondPetId, 1000001, "Incorrect second pet ID");
+        assertEq(secondPetId, 1_000_001, "Incorrect second pet ID");
 
         // Verify pet data
-        (string memory name, string memory description, Pet.Rarity rarity, uint256 yieldBoost, uint256 dropBoost, uint256 level, bool isActive) = petContract.pets(newPetId);
+        (
+            string memory name,
+            string memory description,
+            Pet.Rarity rarity,
+            uint256 yieldBoost,
+            uint256 dropBoost,
+            uint256 level,
+            bool isActive
+        ) = petContract.pets(newPetId);
         assertEq(name, "Test Pet", "Incorrect name");
         assertEq(description, "A loyal companion", "Incorrect description");
         assertEq(uint256(rarity), uint256(Pet.Rarity.RARE), "Incorrect rarity");
@@ -89,7 +95,7 @@ contract PetTest is Test {
             1500, // 15% drop rate boost
             1 // Level 1 required
         );
-        assertEq(newPetId, 1000000, "Incorrect pet ID");
+        assertEq(newPetId, 1_000_000, "Incorrect pet ID");
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -108,7 +114,7 @@ contract PetTest is Test {
             1500, // 15% drop rate boost
             1 // Level 1 required
         );
-        assertEq(newPetId, 1000000, "Incorrect pet ID");
+        assertEq(newPetId, 1_000_000, "Incorrect pet ID");
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -158,7 +164,7 @@ contract PetTest is Test {
             1500, // 15% drop rate boost
             1 // Level 1 required
         );
-        assertEq(newPetId, 1000000, "Incorrect pet ID");
+        assertEq(newPetId, 1_000_000, "Incorrect pet ID");
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -179,10 +185,10 @@ contract PetTest is Test {
             1500, // 15% drop rate boost
             1 // Level 1 required
         );
-        assertEq(newPetId, 1000000, "Incorrect pet ID");
+        assertEq(newPetId, 1_000_000, "Incorrect pet ID");
 
         petContract.deactivatePet(newPetId);
-        (, , , , , , bool isActive) = petContract.pets(newPetId);
+        (,,,,,, bool isActive) = petContract.pets(newPetId);
         assertFalse(isActive, "Pet should be inactive");
         vm.stopPrank();
     }
@@ -214,4 +220,4 @@ contract PetTest is Test {
         );
         vm.stopPrank();
     }
-} 
+}

@@ -31,40 +31,31 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
     uint256 public armorId;
 
     // Implement ERC721Receiver
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes calldata
-    ) external pure override returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 
     // Implement ERC1155Receiver
-    function onERC1155Received(
-        address,
-        address,
-        uint256,
-        uint256,
-        bytes calldata
-    ) external pure override returns (bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata)
+        external
+        pure
+        override
+        returns (bytes4)
+    {
         return IERC1155Receiver.onERC1155Received.selector;
     }
 
-    function onERC1155BatchReceived(
-        address,
-        address,
-        uint256[] calldata,
-        uint256[] calldata,
-        bytes calldata
-    ) external pure override returns (bytes4) {
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+        external
+        pure
+        override
+        returns (bytes4)
+    {
         return IERC1155Receiver.onERC1155BatchReceived.selector;
     }
 
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
-        return
-            interfaceId == type(IERC1155Receiver).interfaceId ||
-            interfaceId == type(IERC721Receiver).interfaceId;
+        return interfaceId == type(IERC1155Receiver).interfaceId || interfaceId == type(IERC721Receiver).interfaceId;
     }
 
     function setUp() public {
@@ -77,10 +68,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         equipment.setCharacterContract(address(character));
 
         // Deploy calculator
-        calculator = new AttributeCalculator(
-            address(character),
-            address(equipment)
-        );
+        calculator = new AttributeCalculator(address(character), address(equipment));
 
         // Deploy provider contracts
         pet = new Pet(address(character));
@@ -93,15 +81,8 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         calculator.addProvider(address(ability));
 
         // Create test character
-        characterId = character.mintCharacter(
-            user,
-            Types.Stats({
-                strength: 10,
-                agility: 8,
-                magic: 6
-            }),
-            Types.Alignment.STRENGTH
-        );
+        characterId =
+            character.mintCharacter(user, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH);
 
         // Get character wallet
         CharacterWallet wallet = character.characterWallets(characterId);
@@ -112,7 +93,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
             "A mighty sword",
             5, // strength bonus
             2, // agility bonus
-            1  // magic bonus
+            1 // magic bonus
         );
 
         armorId = equipment.createEquipment(
@@ -120,7 +101,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
             "Sturdy armor",
             3, // strength bonus
             4, // agility bonus
-            2  // magic bonus
+            2 // magic bonus
         );
 
         // Mint equipment to wallet
@@ -144,7 +125,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
             1 // Level 1 required
         );
 
-        assertEq(petId, 1000000, "Incorrect initial pet ID");
+        assertEq(petId, 1_000_000, "Incorrect initial pet ID");
 
         vm.startPrank(user);
         pet.mintPet(characterId, petId);
@@ -166,7 +147,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
             1 // Level 1 required
         );
 
-        assertEq(mountId, 2000000, "Incorrect initial mount ID");
+        assertEq(mountId, 2_000_000, "Incorrect initial mount ID");
 
         vm.startPrank(user);
         mount.mintMount(characterId, mountId);
@@ -189,16 +170,16 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
 
     function testBaseAttributes() public {
         Types.Stats memory totalStats = calculator.getRawStats(characterId);
-        
+
         // Base stats + equipment bonuses
         assertEq(totalStats.strength, 18, "Incorrect base strength"); // 10 + 5 + 3
-        assertEq(totalStats.agility, 14, "Incorrect base agility");   // 8 + 2 + 4
-        assertEq(totalStats.magic, 9, "Incorrect base magic");        // 6 + 1 + 2
+        assertEq(totalStats.agility, 14, "Incorrect base agility"); // 8 + 2 + 4
+        assertEq(totalStats.magic, 9, "Incorrect base magic"); // 6 + 1 + 2
     }
 
     function testBonusMultipliers() public {
         (, uint256 bonusMultiplier) = calculator.calculateTotalAttributes(characterId);
-        
+
         // Expected bonuses:
         // Base: 10000 (100%)
         // Pet: 2000 (20%)
@@ -206,8 +187,8 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         // Ability: 2000 (20%)
         // Alignment: 500 (5% for strength alignment)
         // Level: 100 (1% for level 1)
-        uint256 expectedMultiplier = 16100; // 10000 + 2000 + 1500 + 2000 + 500 + 100
-        
+        uint256 expectedMultiplier = 16_100; // 10000 + 2000 + 1500 + 2000 + 500 + 100
+
         assertEq(bonusMultiplier, expectedMultiplier, "Incorrect bonus multiplier");
     }
 
@@ -217,10 +198,10 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         uint256 magicBonus = calculator.getStatBonus(characterId, 2);
 
         // Calculate expected bonuses with multiplier
-        uint256 expectedMultiplier = 16100; // From previous test
-        uint256 expectedStrength = (18 * expectedMultiplier) / 10000;
-        uint256 expectedAgility = (14 * expectedMultiplier) / 10000;
-        uint256 expectedMagic = (9 * expectedMultiplier) / 10000;
+        uint256 expectedMultiplier = 16_100; // From previous test
+        uint256 expectedStrength = (18 * expectedMultiplier) / 10_000;
+        uint256 expectedAgility = (14 * expectedMultiplier) / 10_000;
+        uint256 expectedMagic = (9 * expectedMultiplier) / 10_000;
 
         assertEq(strengthBonus, expectedStrength, "Incorrect strength bonus");
         assertEq(agilityBonus, expectedAgility, "Incorrect agility bonus");
@@ -240,7 +221,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         character.updateState(characterId, newState);
 
         (, uint256 bonusMultiplier) = calculator.calculateTotalAttributes(characterId);
-        
+
         // Expected bonuses:
         // Base: 10000 (100%)
         // Pet: 2000 (20%)
@@ -248,8 +229,8 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         // Ability: 2000 (20%)
         // Alignment: 500 (5%)
         // Level: 1000 (10% for level 10)
-        uint256 expectedMultiplier = 17000; // 10000 + 2000 + 1500 + 2000 + 500 + 1000
-        
+        uint256 expectedMultiplier = 17_000; // 10000 + 2000 + 1500 + 2000 + 500 + 1000
+
         assertEq(bonusMultiplier, expectedMultiplier, "Incorrect level 10 bonus multiplier");
     }
 
@@ -259,7 +240,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         equipment.deactivateEquipment(armorId);
 
         Types.Stats memory totalStats = calculator.getRawStats(characterId);
-        
+
         // Should only have base stats since equipment is deactivated
         assertEq(totalStats.strength, 10, "Incorrect strength with deactivated equipment");
         assertEq(totalStats.agility, 8, "Incorrect agility with deactivated equipment");
@@ -273,13 +254,13 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         ability.deactivateAbility(abilityId);
 
         (, uint256 bonusMultiplier) = calculator.calculateTotalAttributes(characterId);
-        
+
         // Expected bonuses:
         // Base: 10000 (100%)
         // Alignment: 500 (5%)
         // Level: 100 (1%)
-        uint256 expectedMultiplier = 10600; // 10000 + 500 + 100
-        
+        uint256 expectedMultiplier = 10_600; // 10000 + 500 + 100
+
         assertEq(bonusMultiplier, expectedMultiplier, "Incorrect bonus multiplier with deactivated sources");
     }
 }

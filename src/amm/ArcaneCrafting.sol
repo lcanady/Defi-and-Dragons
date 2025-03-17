@@ -26,20 +26,20 @@ contract ArcaneCrafting is Ownable, ReentrancyGuard {
     struct Recipe {
         uint256 recipeId;
         uint256 resultingItemId;
-        address lpToken;          // Required LP token address
-        uint256 lpTokenAmount;    // Required LP token amount
-        address[] resources;      // Additional required resource token addresses
+        address lpToken; // Required LP token address
+        uint256 lpTokenAmount; // Required LP token amount
+        address[] resources; // Additional required resource token addresses
         uint256[] resourceAmounts; // Required amounts for each resource
-        uint256 cooldown;         // Cooldown period between crafts (in seconds)
-        bool isActive;            // Whether this recipe is currently active
+        uint256 cooldown; // Cooldown period between crafts (in seconds)
+        bool isActive; // Whether this recipe is currently active
     }
 
     // Mapping to store crafting recipes
     mapping(uint256 => Recipe) public recipes;
-    
+
     // Mapping to track last craft time for each user and recipe
     mapping(address => mapping(uint256 => uint256)) public lastCraftTime;
-    
+
     // Mapping to track special gear that requires AMM engagement
     mapping(uint256 => bool) public ammRequiredGear;
 
@@ -151,11 +151,7 @@ contract ArcaneCrafting is Ownable, ReentrancyGuard {
 
         // Transfer resources
         for (uint256 i = 0; i < recipe.resources.length; i++) {
-            IERC20(recipe.resources[i]).transferFrom(
-                msg.sender,
-                address(this),
-                recipe.resourceAmounts[i]
-            );
+            IERC20(recipe.resources[i]).transferFrom(msg.sender, address(this), recipe.resourceAmounts[i]);
         }
 
         // Mint the crafted item
@@ -180,4 +176,4 @@ contract ArcaneCrafting is Ownable, ReentrancyGuard {
     function isAMMRequired(uint256 _itemId) external view returns (bool) {
         return ammRequiredGear[_itemId];
     }
-} 
+}

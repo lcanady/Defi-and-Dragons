@@ -37,11 +37,11 @@ contract AbilityIntegrationTest is Test {
         // Deploy core contracts
         equipment = new Equipment();
         character = new Character(address(equipment));
-        
+
         // Deploy VRF Coordinator Mock
         vrfCoordinator = new VRFCoordinatorV2Mock(
             100_000, // baseFee
-            100_000  // gasPriceLink
+            100_000 // gasPriceLink
         );
 
         // Create and fund subscription
@@ -55,23 +55,14 @@ contract AbilityIntegrationTest is Test {
             SUBSCRIPTION_ID,
             KEY_HASH,
             200_000, // callbackGasLimit
-            3,       // requestConfirmations
-            1        // numWords
+            3, // requestConfirmations
+            1 // numWords
         );
         ability = new Ability(address(character));
-        crafting = new ArcaneCrafting(
-            address(factory),
-            address(equipment),
-            address(itemDrop)
-        );
+        crafting = new ArcaneCrafting(address(factory), address(equipment), address(itemDrop));
 
         // Deploy integration contract
-        integration = new AbilityIntegration(
-            address(ability),
-            address(crafting),
-            address(factory),
-            address(itemDrop)
-        );
+        integration = new AbilityIntegration(address(ability), address(crafting), address(factory), address(itemDrop));
 
         // Initialize contracts
         itemDrop.initialize(address(equipment));
@@ -79,9 +70,7 @@ contract AbilityIntegrationTest is Test {
 
         // Create test character
         characterId = character.mintCharacter(
-            user,
-            Types.Stats({ strength: 10, agility: 10, magic: 10 }),
-            Types.Alignment.STRENGTH
+            user, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
         );
 
         // Create test ability
@@ -181,4 +170,4 @@ contract AbilityIntegrationTest is Test {
             5
         );
     }
-} 
+}

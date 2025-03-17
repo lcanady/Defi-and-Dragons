@@ -30,7 +30,7 @@ contract CharacterWalletTest is Test {
             "A test weapon",
             5, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         uint256 armorId = equipment.createEquipment(
@@ -38,7 +38,7 @@ contract CharacterWalletTest is Test {
             "A test armor",
             0, // strength bonus
             5, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         // Transfer wallet ownership to owner

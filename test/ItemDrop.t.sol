@@ -76,7 +76,7 @@ contract ItemDropTest is Test, TestHelper {
                 string(abi.encodePacked("A test item #", i.toString())),
                 5, // strength bonus
                 0, // agility bonus
-                0  // magic bonus
+                0 // magic bonus
             );
         }
 
@@ -116,7 +116,7 @@ contract ItemDropTest is Test, TestHelper {
 
         // Simulate VRF response with a random number that will trigger a drop
         uint256[] memory randomWords = new uint256[](1);
-        randomWords[0] = 12345;
+        randomWords[0] = 12_345;
         vm.recordLogs();
         vrfCoordinator.fulfillRandomWordsWithOverride(requestId, address(itemDrop), randomWords);
 
@@ -159,7 +159,7 @@ contract ItemDropTest is Test, TestHelper {
 
         // Use a random number that will trigger a drop (based on 50% base + 50% bonus = 100% drop rate)
         uint256[] memory randomWords = new uint256[](1);
-        randomWords[0] = 12345;
+        randomWords[0] = 12_345;
         vm.recordLogs();
         vrfCoordinator.fulfillRandomWordsWithOverride(requestId, address(itemDrop), randomWords);
 
@@ -210,7 +210,7 @@ contract ItemDropTest is Test, TestHelper {
         require(found, "Request ID not found");
 
         // Check if drop rate bonus was stored correctly
-        (,uint256 dropRateBonus,) = itemDrop.dropRequests(requestId);
+        (, uint256 dropRateBonus,) = itemDrop.dropRequests(requestId);
         assertEq(dropRateBonus, 5000, "Incorrect drop rate bonus stored");
     }
 }

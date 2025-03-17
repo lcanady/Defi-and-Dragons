@@ -91,11 +91,7 @@ contract Ability is ERC721, Ownable, IAttributeProvider {
         (,, Types.CharacterState memory state) = characterContract.getCharacter(characterId);
         if (state.level < abilities[abilityId].requiredLevel) revert InsufficientLevel();
 
-        heroAbilities[characterId] = HeroAbility({
-            abilityId: abilityId,
-            lastUsed: 0,
-            active: true
-        });
+        heroAbilities[characterId] = HeroAbility({ abilityId: abilityId, lastUsed: 0, active: true });
 
         emit AbilityLearned(characterId, abilityId);
     }
@@ -104,7 +100,7 @@ contract Ability is ERC721, Ownable, IAttributeProvider {
     function useAbility(uint256 characterId) external returns (bool) {
         HeroAbility storage heroAbility = heroAbilities[characterId];
         if (!heroAbility.active) revert NoActiveAbility();
-        
+
         AbilityData storage ability = abilities[heroAbility.abilityId];
         if (!ability.active) revert AbilityNotActive();
 
@@ -125,12 +121,11 @@ contract Ability is ERC721, Ownable, IAttributeProvider {
     }
 
     /// @notice Get ability benefits for a character
-    function getAbilityBenefits(uint256 characterId) public view returns (
-        uint256 ammFeeReduction,
-        uint256 craftingBoost,
-        uint256 vrfReduction,
-        uint256 cdReduction
-    ) {
+    function getAbilityBenefits(uint256 characterId)
+        public
+        view
+        returns (uint256 ammFeeReduction, uint256 craftingBoost, uint256 vrfReduction, uint256 cdReduction)
+    {
         HeroAbility memory heroAbility = heroAbilities[characterId];
         if (!heroAbility.active) return (0, 0, 0, 0);
 

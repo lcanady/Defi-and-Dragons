@@ -22,7 +22,7 @@ contract EquipmentTest is Test {
             "A test weapon",
             5, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         (Types.EquipmentStats memory stats, bool exists) = equipment.getEquipmentStats(weaponId);
@@ -39,7 +39,7 @@ contract EquipmentTest is Test {
             "A test weapon",
             5, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         equipment.mint(user, weaponId, 1, "");
@@ -52,7 +52,7 @@ contract EquipmentTest is Test {
             "A test weapon",
             5, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         equipment.deactivateEquipment(weaponId);
@@ -67,7 +67,7 @@ contract EquipmentTest is Test {
             "A test weapon",
             5, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         equipment.deactivateEquipment(weaponId);
@@ -83,7 +83,7 @@ contract EquipmentTest is Test {
             "A test weapon",
             5, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         equipment.deactivateEquipment(weaponId);
@@ -107,7 +107,7 @@ contract EquipmentTest is Test {
             "A weapon with no bonuses",
             0, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         equipment.deactivateEquipment(weaponId);
@@ -120,7 +120,7 @@ contract EquipmentTest is Test {
             "A weapon with no bonuses",
             0, // strength bonus
             0, // agility bonus
-            0  // magic bonus
+            0 // magic bonus
         );
 
         equipment.activateEquipment(weaponId);

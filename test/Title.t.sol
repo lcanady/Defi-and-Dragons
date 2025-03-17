@@ -25,18 +25,16 @@ contract TitleTest is Test {
 
         // Create a character for testing
         characterId = character.mintCharacter(
-            user1,
-            Types.Stats({ strength: 10, agility: 10, magic: 10 }),
-            Types.Alignment.STRENGTH
+            user1, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
         );
     }
 
     function testCreateTitle() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200); // 5%, 3%, 2% boosts
-        
-        (string memory name, uint256 yieldBoost, uint256 feeReduction, uint256 dropRate, bool active) = 
+
+        (string memory name, uint256 yieldBoost, uint256 feeReduction, uint256 dropRate, bool active) =
             titleContract.titles(titleId);
-        
+
         assertEq(name, "Champion", "Incorrect title name");
         assertEq(yieldBoost, 500, "Incorrect yield boost");
         assertEq(feeReduction, 300, "Incorrect fee reduction");
@@ -46,13 +44,13 @@ contract TitleTest is Test {
 
     function testAssignTitle() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
-        
+
         vm.startPrank(user1);
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
 
         assertTrue(titleContract.hasActiveTitle(characterId), "Title should be active");
-        
+
         (uint256 yieldBoost, uint256 feeReduction, uint256 dropRate) = titleContract.getTitleBenefits(characterId);
         assertEq(yieldBoost, 500, "Incorrect yield boost");
         assertEq(feeReduction, 300, "Incorrect fee reduction");
@@ -61,15 +59,15 @@ contract TitleTest is Test {
 
     function testRevokeTitle() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
-        
+
         vm.startPrank(user1);
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
 
         titleContract.revokeTitle(characterId);
-        
+
         assertFalse(titleContract.hasActiveTitle(characterId), "Title should be inactive");
-        
+
         (uint256 yieldBoost, uint256 feeReduction, uint256 dropRate) = titleContract.getTitleBenefits(characterId);
         assertEq(yieldBoost, 0, "Should have no yield boost");
         assertEq(feeReduction, 0, "Should have no fee reduction");
@@ -78,15 +76,15 @@ contract TitleTest is Test {
 
     function testDeactivateTitle() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
-        
+
         vm.startPrank(user1);
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
 
         titleContract.deactivateTitle(titleId);
-        
+
         assertFalse(titleContract.hasActiveTitle(characterId), "Title should be inactive");
-        
+
         (uint256 yieldBoost, uint256 feeReduction, uint256 dropRate) = titleContract.getTitleBenefits(characterId);
         assertEq(yieldBoost, 0, "Should have no yield boost");
         assertEq(feeReduction, 0, "Should have no fee reduction");
@@ -96,7 +94,7 @@ contract TitleTest is Test {
     function testFailAssignInactiveTitle() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
         titleContract.deactivateTitle(titleId);
-        
+
         vm.startPrank(user1);
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
@@ -104,9 +102,9 @@ contract TitleTest is Test {
 
     function testFailUnauthorizedAssignment() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
-        
+
         vm.startPrank(user2);
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
     }
-} 
+}

@@ -2,14 +2,14 @@
 /* eslint-disable no-console */
 pragma solidity ^0.8.20;
 
-import {Script} from "forge-std/Script.sol";
-import {console2} from "forge-std/console2.sol";
-import {Character} from "../src/Character.sol";
-import {Equipment} from "../src/Equipment.sol";
-import {GameToken} from "../src/GameToken.sol";
-import {Quest} from "../src/Quest.sol";
-import {ItemDrop} from "../src/ItemDrop.sol";
-import {Marketplace} from "../src/Marketplace.sol";
+import { Script } from "forge-std/Script.sol";
+import { console2 } from "forge-std/console2.sol";
+import { Character } from "../src/Character.sol";
+import { Equipment } from "../src/Equipment.sol";
+import { GameToken } from "../src/GameToken.sol";
+import { Quest } from "../src/Quest.sol";
+import { ItemDrop } from "../src/ItemDrop.sol";
+import { Marketplace } from "../src/Marketplace.sol";
 
 contract DeployScript is Script {
     function run() public {
@@ -19,7 +19,7 @@ contract DeployScript is Script {
         address vrfCoordinator = vm.envAddress("VRF_COORDINATOR");
         uint64 vrfSubscriptionId = uint64(vm.envUint("VRF_SUBSCRIPTION_ID"));
         address feeCollector = vm.envAddress("FEE_COLLECTOR");
-        
+
         vm.startBroadcast(deployerPrivateKey);
 
         // Deploy core contracts
@@ -43,21 +43,17 @@ contract DeployScript is Script {
         quest.initialize(address(gameToken));
 
         // Deploy Marketplace with proper configuration
-        Marketplace marketplace = new Marketplace(
-            address(gameToken),
-            address(equipment),
-            feeCollector
-        );
+        Marketplace marketplace = new Marketplace(address(gameToken), address(equipment), feeCollector);
 
         // Set up permissions and links between contracts
-        
+
         // Authorize Quest contract to mint tokens
         gameToken.setQuestContract(address(quest), true);
-        
+
         // Set up Equipment contract permissions
         equipment.setCharacterContract(address(character));
         equipment.setItemDrop(address(itemDrop));
-        
+
         // Set up initial marketplace parameters
         marketplace.updateListingFee(100); // 1% fee
 

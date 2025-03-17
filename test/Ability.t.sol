@@ -25,9 +25,7 @@ contract AbilityTest is Test {
 
         // Create a character for testing
         characterId = character.mintCharacter(
-            user1,
-            Types.Stats({ strength: 10, agility: 10, magic: 10 }),
-            Types.Alignment.STRENGTH
+            user1, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
         );
     }
 
@@ -61,14 +59,7 @@ contract AbilityTest is Test {
     }
 
     function testLearnAbility() public {
-        uint256 abilityId = abilityContract.createAbility(
-            "Swift Trading",
-            500,
-            300,
-            200,
-            1 hours,
-            5
-        );
+        uint256 abilityId = abilityContract.createAbility("Swift Trading", 500, 300, 200, 1 hours, 5);
 
         // Update character level
         Types.CharacterState memory newState = Types.CharacterState({
@@ -87,12 +78,8 @@ contract AbilityTest is Test {
 
         assertTrue(abilityContract.hasActiveAbility(characterId), "Ability should be active");
 
-        (
-            uint256 ammFeeReduction,
-            uint256 craftingBoost,
-            uint256 vrfReduction,
-            uint256 cdReduction
-        ) = abilityContract.getAbilityBenefits(characterId);
+        (uint256 ammFeeReduction, uint256 craftingBoost, uint256 vrfReduction, uint256 cdReduction) =
+            abilityContract.getAbilityBenefits(characterId);
 
         assertEq(ammFeeReduction, 500, "Incorrect fee reduction");
         assertEq(craftingBoost, 300, "Incorrect crafting boost");
@@ -154,14 +141,7 @@ contract AbilityTest is Test {
     }
 
     function testDeactivateAbility() public {
-        uint256 abilityId = abilityContract.createAbility(
-            "Swift Trading",
-            500,
-            300,
-            200,
-            1 hours,
-            5
-        );
+        uint256 abilityId = abilityContract.createAbility("Swift Trading", 500, 300, 200, 1 hours, 5);
 
         // Update character level and learn ability
         Types.CharacterState memory newState = Types.CharacterState({
@@ -182,16 +162,12 @@ contract AbilityTest is Test {
         abilityContract.deactivateAbility(abilityId);
         assertFalse(abilityContract.hasActiveAbility(characterId), "Ability should be inactive");
 
-        (
-            uint256 ammFeeReduction,
-            uint256 craftingBoost,
-            uint256 vrfReduction,
-            uint256 cdReduction
-        ) = abilityContract.getAbilityBenefits(characterId);
+        (uint256 ammFeeReduction, uint256 craftingBoost, uint256 vrfReduction, uint256 cdReduction) =
+            abilityContract.getAbilityBenefits(characterId);
 
         assertEq(ammFeeReduction, 0, "Should have no fee reduction");
         assertEq(craftingBoost, 0, "Should have no crafting boost");
         assertEq(vrfReduction, 0, "Should have no VRF reduction");
         assertEq(cdReduction, 0, "Should have no cooldown reduction");
     }
-} 
+}
