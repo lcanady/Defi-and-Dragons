@@ -46,7 +46,6 @@
 
 ## Technical Documentation
 
-- [API Reference](API.md) - Complete smart contract API documentation
 - [Technical Specs](TECHNICAL.md) - Architecture and technical details
 - [Contributing Guide](CONTRIBUTING.md) - Development guidelines
 
