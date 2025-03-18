@@ -13,8 +13,7 @@ contract ArcaneFactory is Ownable, ReentrancyGuard {
 
     event PairCreated(address indexed token0, address indexed token1, address pair, uint256 pairLength);
 
-    constructor() Ownable(msg.sender) {
-    }
+    constructor() Ownable(msg.sender) { }
 
     /// @notice Creates a new liquidity pair for two tokens
     /// @param tokenA The first token of the pair

@@ -210,7 +210,13 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
         return super.uri(tokenId);
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControl, ERC1155) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(AccessControl, ERC1155)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
     }
 }
