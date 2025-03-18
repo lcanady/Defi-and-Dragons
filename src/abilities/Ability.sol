@@ -49,7 +49,7 @@ contract Ability is ERC721, Ownable, IAttributeProvider {
     error NoActiveAbility();
     error NotCharacterOwner();
 
-    constructor(address _characterContract) ERC721("Hero Ability", "ABILITY") {
+    constructor(address _characterContract) ERC721("Hero Ability", "ABILITY") Ownable(msg.sender) {
         characterContract = ICharacter(_characterContract);
     }
 

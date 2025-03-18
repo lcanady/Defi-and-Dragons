@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ArcaneFactory } from "./ArcaneFactory.sol";
 import { ArcanePair } from "./ArcanePair.sol";
@@ -49,8 +49,7 @@ contract ArcaneCrafting is Ownable, ReentrancyGuard {
     event ItemCrafted(address indexed crafter, uint256 indexed recipeId, uint256 indexed itemId);
     event AMMGearStatusSet(uint256 indexed itemId, bool required);
 
-    constructor(address _factory, address _equipment, address _itemDrop) {
-        _transferOwnership(msg.sender);
+    constructor(address _factory, address _equipment, address _itemDrop) Ownable(msg.sender) {
         factory = ArcaneFactory(_factory);
         equipment = Equipment(_equipment);
         itemDrop = ItemDrop(_itemDrop);

@@ -25,6 +25,7 @@ contract QuestTest is Test {
         quest = new Quest(address(character));
         quest.initialize(address(gameToken));
         gameToken.setQuestContract(address(quest), true);
+        gameToken.grantRole(gameToken.MINTER_ROLE(), address(quest));
 
         vm.stopPrank();
         vm.startPrank(user);

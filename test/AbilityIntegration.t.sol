@@ -125,7 +125,7 @@ contract AbilityIntegrationTest is Test {
         assertEq(reduction, 2000, "Incorrect AMM fee reduction");
     }
 
-    function testApplyVRFBenefits() public {
+    function testApplyVRFBenefits() public view {
         uint256 reduction = integration.applyVRFBenefits(characterId);
         assertEq(reduction, 1000, "Incorrect VRF reduction");
     }

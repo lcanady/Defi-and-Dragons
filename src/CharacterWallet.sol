@@ -18,8 +18,7 @@ contract CharacterWallet is Ownable, ERC1155Holder, ERC721Holder {
     event ItemEquipped(uint256 indexed characterId, uint256 weaponId, uint256 armorId);
     event ItemUnequipped(uint256 indexed characterId, bool weapon, bool armor);
 
-    constructor(address _equipment, uint256 _characterId, address _characterContract) {
-        _transferOwnership(msg.sender);
+    constructor(address _equipment, uint256 _characterId, address _characterContract) Ownable(msg.sender) {
         equipment = IEquipment(_equipment);
         characterId = _characterId;
         characterContract = _characterContract;

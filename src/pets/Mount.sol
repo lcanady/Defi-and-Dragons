@@ -68,7 +68,7 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
     event MountActivated(uint256 indexed mountId);
     event MountDeactivated(uint256 indexed mountId);
 
-    constructor(address _characterContract) ERC721("Game Mount", "MOUNT") {
+    constructor(address _characterContract) ERC721("Game Mount", "MOUNT") Ownable(msg.sender) {
         characterContract = Character(_characterContract);
         _nextMountId = 2_000_000;
     }
@@ -293,5 +293,9 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
 
         MountData memory mount = mounts[mountId];
         return Types.AttributeBonuses(mount.yieldBoost, mount.dropRateBoost);
+    }
+
+    function _exists(uint256 tokenId) internal view virtual returns (bool) {
+        return _ownerOf(tokenId) != address(0);
     }
 }

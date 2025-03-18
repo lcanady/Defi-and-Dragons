@@ -128,6 +128,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
         vrfCoordinator.addConsumer(_SUBSCRIPTION_ID, address(itemDrop));
 
         itemDrop.initialize(address(equipment));
+        equipment.grantRole(equipment.MINTER_ROLE(), address(itemDrop));
     }
 
     // Helper function to create and equip test equipment

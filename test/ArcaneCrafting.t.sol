@@ -88,6 +88,7 @@ contract ArcaneCraftingTest is Test {
 
         // Setup permissions
         equipment.setCharacterContract(address(crafting));
+        equipment.grantRole(equipment.MINTER_ROLE(), address(crafting));
 
         // Create test equipment
         for (uint256 i = 0; i < 5; i++) {

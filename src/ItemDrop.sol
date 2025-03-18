@@ -38,8 +38,7 @@ contract ItemDrop is VRFConsumerBaseV2, Ownable {
         uint32 _callbackGasLimit,
         uint16 _requestConfirmations,
         uint32 _numWords
-    ) VRFConsumerBaseV2(_vrfCoordinator) {
-        _transferOwnership(msg.sender);
+    ) VRFConsumerBaseV2(_vrfCoordinator) Ownable(msg.sender) {
         vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
         subscriptionId = _subscriptionId;
         keyHash = _keyHash;

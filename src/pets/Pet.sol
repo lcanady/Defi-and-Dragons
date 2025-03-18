@@ -60,14 +60,14 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
     error BoostTooHigh();
     error NoPetAssigned();
 
-    constructor(address _characterContract) ERC721("Game Pet", "PET") {
+    constructor(address _characterContract) ERC721("Game Pet", "PET") Ownable(msg.sender) {
         characterContract = Character(_characterContract);
         _nextPetTypeId = 1_000_000;
         _nextTokenId = 1;
     }
 
     /// @notice Check if a pet exists
-    function _exists(uint256 petId) internal view override returns (bool) {
+    function _exists(uint256 petId) internal view returns (bool) {
         return _existsMap[petId];
     }
 

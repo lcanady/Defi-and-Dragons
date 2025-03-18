@@ -2,15 +2,13 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "../interfaces/IGameToken.sol";
 
 /// @title ArcaneStaking
 /// @notice Manages staking of LP tokens and reward distribution
 contract ArcaneStaking is Ownable, ReentrancyGuard {
-    using SafeMath for uint256;
-
     struct UserInfo {
         uint256 amount;
         uint256 rewardDebt;
@@ -40,7 +38,7 @@ contract ArcaneStaking is Ownable, ReentrancyGuard {
     event PoolAdded(uint256 indexed pid, address lpToken, uint256 allocPoint);
     event PoolUpdated(uint256 indexed pid, uint256 allocPoint);
 
-    constructor(IERC20 _rewardToken, uint256 _rewardPerBlock) {
+    constructor(IERC20 _rewardToken, uint256 _rewardPerBlock) Ownable(msg.sender) {
         rewardToken = _rewardToken;
         rewardPerBlock = _rewardPerBlock;
     }
@@ -52,7 +50,7 @@ contract ArcaneStaking is Ownable, ReentrancyGuard {
     function addPool(uint256 _allocPoint, IERC20 _lpToken, uint256 _minStakingTime) external onlyOwner {
         _massUpdatePools();
         uint256 lastRewardBlock = block.number;
-        totalAllocPoint = totalAllocPoint.add(_allocPoint);
+        totalAllocPoint = totalAllocPoint + _allocPoint;
 
         poolInfo.push(
             PoolInfo({
@@ -73,7 +71,7 @@ contract ArcaneStaking is Ownable, ReentrancyGuard {
     /// @param _allocPoint New allocation points
     function setPool(uint256 _pid, uint256 _allocPoint) external onlyOwner {
         _massUpdatePools();
-        totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_allocPoint);
+        totalAllocPoint = totalAllocPoint - poolInfo[_pid].allocPoint + _allocPoint;
         poolInfo[_pid].allocPoint = _allocPoint;
         emit PoolUpdated(_pid, _allocPoint);
     }
@@ -87,12 +85,12 @@ contract ArcaneStaking is Ownable, ReentrancyGuard {
         uint256 accRewardPerShare = pool.accRewardPerShare;
 
         if (block.number > pool.lastRewardBlock && pool.totalStaked != 0) {
-            uint256 multiplier = block.number.sub(pool.lastRewardBlock);
-            uint256 reward = multiplier.mul(rewardPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            accRewardPerShare = accRewardPerShare.add(reward.mul(1e12).div(pool.totalStaked));
+            uint256 multiplier = block.number - pool.lastRewardBlock;
+            uint256 reward = (multiplier * rewardPerBlock * pool.allocPoint) / totalAllocPoint;
+            accRewardPerShare = accRewardPerShare + ((reward * 1e12) / pool.totalStaked);
         }
 
-        return user.amount.mul(accRewardPerShare).div(1e12).sub(user.rewardDebt);
+        return (user.amount * accRewardPerShare) / 1e12 - user.rewardDebt;
     }
 
     /// @notice Update reward variables for all pools
@@ -116,9 +114,9 @@ contract ArcaneStaking is Ownable, ReentrancyGuard {
             return;
         }
 
-        uint256 multiplier = block.number.sub(pool.lastRewardBlock);
-        uint256 reward = multiplier.mul(rewardPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        pool.accRewardPerShare = pool.accRewardPerShare.add(reward.mul(1e12).div(pool.totalStaked));
+        uint256 multiplier = block.number - pool.lastRewardBlock;
+        uint256 reward = (multiplier * rewardPerBlock * pool.allocPoint) / totalAllocPoint;
+        pool.accRewardPerShare = pool.accRewardPerShare + ((reward * 1e12) / pool.totalStaked);
         pool.lastRewardBlock = block.number;
     }
 
@@ -128,25 +126,21 @@ contract ArcaneStaking is Ownable, ReentrancyGuard {
     function deposit(uint256 _pid, uint256 _amount) external nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
-
         _updatePool(_pid);
-
         if (user.amount > 0) {
-            uint256 pending = user.amount.mul(pool.accRewardPerShare).div(1e12).sub(user.rewardDebt);
+            uint256 pending = (user.amount * pool.accRewardPerShare) / 1e12 - user.rewardDebt;
             if (pending > 0) {
                 _safeRewardTransfer(msg.sender, pending);
                 emit RewardPaid(msg.sender, _pid, pending);
             }
         }
-
         if (_amount > 0) {
             pool.lpToken.transferFrom(msg.sender, address(this), _amount);
-            user.amount = user.amount.add(_amount);
-            pool.totalStaked = pool.totalStaked.add(_amount);
+            user.amount = user.amount + _amount;
+            pool.totalStaked = pool.totalStaked + _amount;
             user.lastStakeTime = block.timestamp;
         }
-
-        user.rewardDebt = user.amount.mul(pool.accRewardPerShare).div(1e12);
+        user.rewardDebt = (user.amount * pool.accRewardPerShare) / 1e12;
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -156,25 +150,20 @@ contract ArcaneStaking is Ownable, ReentrancyGuard {
     function withdraw(uint256 _pid, uint256 _amount) external nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
-
         require(user.amount >= _amount, "withdraw: not enough balance");
         require(block.timestamp >= user.lastStakeTime + pool.minStakingTime, "withdraw: minimum staking time not met");
-
         _updatePool(_pid);
-
-        uint256 pending = user.amount.mul(pool.accRewardPerShare).div(1e12).sub(user.rewardDebt);
+        uint256 pending = (user.amount * pool.accRewardPerShare) / 1e12 - user.rewardDebt;
         if (pending > 0) {
             _safeRewardTransfer(msg.sender, pending);
             emit RewardPaid(msg.sender, _pid, pending);
         }
-
         if (_amount > 0) {
-            user.amount = user.amount.sub(_amount);
-            pool.totalStaked = pool.totalStaked.sub(_amount);
+            user.amount = user.amount - _amount;
+            pool.totalStaked = pool.totalStaked - _amount;
             pool.lpToken.transfer(msg.sender, _amount);
         }
-
-        user.rewardDebt = user.amount.mul(pool.accRewardPerShare).div(1e12);
+        user.rewardDebt = (user.amount * pool.accRewardPerShare) / 1e12;
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
@@ -183,12 +172,10 @@ contract ArcaneStaking is Ownable, ReentrancyGuard {
     function emergencyWithdraw(uint256 _pid) external nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
-
         uint256 amount = user.amount;
-        pool.totalStaked = pool.totalStaked.sub(amount);
+        pool.totalStaked = pool.totalStaked - amount;
         user.amount = 0;
         user.rewardDebt = 0;
-
         pool.lpToken.transfer(msg.sender, amount);
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }

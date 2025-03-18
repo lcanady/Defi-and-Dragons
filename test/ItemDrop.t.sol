@@ -62,6 +62,7 @@ contract ItemDropTest is Test, TestHelper {
         // Initialize contracts
         equipment.setItemDrop(address(itemDrop));
         equipment.setCharacterContract(address(itemDrop));
+        equipment.grantRole(equipment.MINTER_ROLE(), address(itemDrop));
         itemDrop.initialize(address(equipment));
 
         // Add debug logs

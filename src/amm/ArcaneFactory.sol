@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./ArcanePair.sol";
 
 /// @title ArcaneFactory
@@ -12,6 +12,9 @@ contract ArcaneFactory is Ownable, ReentrancyGuard {
     address[] public allPairs;
 
     event PairCreated(address indexed token0, address indexed token1, address pair, uint256 pairLength);
+
+    constructor() Ownable(msg.sender) {
+    }
 
     /// @notice Creates a new liquidity pair for two tokens
     /// @param tokenA The first token of the pair

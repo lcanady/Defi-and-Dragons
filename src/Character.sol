@@ -23,8 +23,7 @@ contract Character is ERC721, Ownable, ICharacter {
     event StatsUpdated(uint256 indexed tokenId, Types.Stats stats);
     event StateUpdated(uint256 indexed tokenId, Types.CharacterState state);
 
-    constructor(address _equipmentContract) ERC721("DnD Character", "DNDC") {
-        _transferOwnership(msg.sender);
+    constructor(address _equipmentContract) ERC721("DnD Character", "DNDC") Ownable(msg.sender) {
         equipmentContract = IEquipment(_equipmentContract);
     }
 
@@ -95,12 +94,13 @@ contract Character is ERC721, Ownable, ICharacter {
         emit StateUpdated(tokenId, newState);
     }
 
-    function _exists(uint256 tokenId) internal view virtual override returns (bool) {
+    function _exists(uint256 tokenId) internal view virtual returns (bool) {
         return _ownerOf(tokenId) != address(0);
     }
 
-    function _transfer(address from, address to, uint256 tokenId) internal virtual override {
-        super._transfer(from, to, tokenId);
+    function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
+        address from = _ownerOf(tokenId);
+        address previousOwner = super._update(to, tokenId, auth);
 
         // Transfer wallet ownership when character is transferred
         if (from != address(0) && to != address(0)) {
@@ -108,5 +108,7 @@ contract Character is ERC721, Ownable, ICharacter {
             CharacterWallet wallet = characterWallets[tokenId];
             wallet.transferOwnership(to);
         }
+
+        return previousOwner;
     }
 }

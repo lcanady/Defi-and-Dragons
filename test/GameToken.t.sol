@@ -29,6 +29,7 @@ contract GameTokenTest is Test {
     function testMintAsQuestContract() public {
         uint256 amount = 100 * 10 ** 18;
         gameToken.setQuestContract(questContract, true);
+        gameToken.grantRole(gameToken.MINTER_ROLE(), questContract);
 
         vm.prank(questContract);
         gameToken.mint(user, amount);

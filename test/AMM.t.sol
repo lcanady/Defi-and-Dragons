@@ -60,8 +60,14 @@ contract AMMTest is Test {
             1 // numWords
         );
 
-        // Deploy integration contract
+        // Setup quest contract
+        gameToken.setQuestContract(address(questContract), true);
+        gameToken.grantRole(gameToken.MINTER_ROLE(), address(questContract));
+
+        // Setup quest integration
         questIntegration = new ArcaneQuestIntegration(address(factory), address(questContract), address(itemDrop));
+        gameToken.setQuestContract(address(questIntegration), true);
+        gameToken.grantRole(gameToken.MINTER_ROLE(), address(questIntegration));
 
         // Setup initial token balances
         gameToken.mint(user1, 1000e18);
@@ -86,9 +92,6 @@ contract AMMTest is Test {
             user1, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
         );
         vm.stopPrank();
-
-        // Setup quest contract
-        gameToken.setQuestContract(address(questContract), true);
     }
 
     function testCreatePair() public {

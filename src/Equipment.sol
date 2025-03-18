@@ -3,12 +3,13 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./interfaces/Types.sol";
 import "./interfaces/IEquipment.sol";
 import "./interfaces/Errors.sol";
 import "./interfaces/ICharacter.sol";
 
-contract Equipment is ERC1155, Ownable, IEquipment {
+contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
     // State variables
     mapping(uint256 => Types.EquipmentStats) public equipmentStats;
     mapping(uint256 => bool) private _exists;
@@ -17,14 +18,16 @@ contract Equipment is ERC1155, Ownable, IEquipment {
     uint256 private _nextTokenId = 1; // Start from 1 instead of 0
     address private _characterContract;
     address private _itemDrop;
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     // Events
     event EquipmentCreated(uint256 indexed tokenId, string name, string description);
     event EquipmentActivated(uint256 indexed tokenId);
     event EquipmentDeactivated(uint256 indexed tokenId);
 
-    constructor() ERC1155("") {
-        _transferOwnership(msg.sender);
+    constructor() ERC1155("") Ownable(msg.sender) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, msg.sender);
     }
 
     modifier onlyCharacterContract() {
@@ -181,12 +184,7 @@ contract Equipment is ERC1155, Ownable, IEquipment {
         _itemDrop = itemDrop;
     }
 
-    function mint(address to, uint256 id, uint256 amount, bytes memory data) external override {
-        require(
-            msg.sender == owner() || msg.sender == _characterContract || msg.sender == _itemDrop,
-            "Not authorized to mint"
-        );
-
+    function mint(address to, uint256 id, uint256 amount, bytes memory data) external override onlyRole(MINTER_ROLE) {
         // Check if equipment is active
         if (_exists[id]) {
             Types.EquipmentStats memory stats = equipmentStats[id];
@@ -212,7 +210,7 @@ contract Equipment is ERC1155, Ownable, IEquipment {
         return super.uri(tokenId);
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControl, ERC1155) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 }

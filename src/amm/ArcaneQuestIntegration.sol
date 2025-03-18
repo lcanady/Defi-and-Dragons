@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ArcaneFactory } from "./ArcaneFactory.sol";
 import { ArcanePair } from "./ArcanePair.sol";
@@ -33,8 +33,7 @@ contract ArcaneQuestIntegration is Ownable, ReentrancyGuard {
     event LPDropRateBonusSet(address indexed lpPair, uint256 bonus);
     event EnhancedRewardClaimed(address indexed user, uint256 indexed questId, uint256 bonus);
 
-    constructor(address _factory, address _questContract, address _itemDrop) {
-        _transferOwnership(msg.sender);
+    constructor(address _factory, address _questContract, address _itemDrop) Ownable(msg.sender) {
         factory = ArcaneFactory(_factory);
         questContract = Quest(_questContract);
         itemDrop = ItemDrop(_itemDrop);
