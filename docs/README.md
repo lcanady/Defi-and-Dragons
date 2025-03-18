@@ -1,147 +1,212 @@
-# Arcane Game System Documentation
+# Arcane Game System
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Built with Foundry](https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg)](https://getfoundry.sh/)
+[![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.20-363636.svg)](https://soliditylang.org/)
+[![Tests](https://img.shields.io/badge/Tests-100%25-green.svg)](https://github.com/lcanady/dnd/actions)
 
 ## Overview
-This documentation covers the core systems of the Arcane Game, a sophisticated blockchain-based RPG that combines traditional gaming mechanics with DeFi elements. Each system is designed to be modular yet deeply integrated, providing a rich and engaging player experience while maintaining security and efficiency.
 
-## Core Systems
+Arcane Game is a sophisticated blockchain-based RPG that seamlessly integrates traditional gaming mechanics with DeFi elements. Built on modular smart contract architecture, it offers a rich gaming experience with secure, efficient, and extensible systems.
 
-1. [Character System](01_character_system.md)
-   - Advanced character creation and progression system
-   - Dynamic attribute allocation and scaling
-   - Multi-class support with specializations
-   - Deep integration with equipment, abilities, and crafting
-   - Experience and level progression mechanics
-   - Character state management and persistence
-   - Social features and character interactions
+### Key Features
 
-2. [Equipment System](02_equipment_system.md)
-   - ERC1155-based equipment implementation
-   - Sophisticated stat and bonus calculation system
+- **Advanced Character System**: Dynamic progression, multi-class support, and deep customization
+- **Innovative Economy**: AMM-based trading, crafting, and resource management
+- **Unique Companions**: ERC721-based pets and mounts with evolution mechanics
+- **Complex Abilities**: Flexible skill system with combos and synergies
+- **Dynamic Equipment**: ERC1155-based items with quality and enhancement systems
+- **DeFi Integration**: Yield farming, liquidity provision, and staking rewards
+
+## System Architecture
+
+### Core Systems
+
+1. **Character System** [`docs/01_character_system.md`]
+   - Character creation and progression
+   - Multi-class specializations
+   - Experience and leveling mechanics
+   - Social features and interactions
+   - State management and persistence
+
+2. **Equipment System** [`docs/02_equipment_system.md`]
+   - ERC1155 implementation
    - Quality and durability mechanics
-   - Equipment enhancement and evolution paths
-   - Set bonus and synergy systems
-   - Special ability integration
-   - Equipment marketplace integration
+   - Enhancement and evolution paths
+   - Set bonuses and synergies
+   - Equipment marketplace
 
-3. [AMM System](03_amm_system.md)
-   - Advanced automated market maker implementation
-   - Multi-token liquidity pools with dynamic fees
-   - Sophisticated price discovery mechanisms
-   - Flash loan and arbitrage protection
-   - Yield farming and staking rewards
-   - Oracle price feeds integration
-   - Emergency circuit breakers
+3. **AMM System** [`docs/03_amm_system.md`]
+   - Automated market maker implementation
+   - Dynamic liquidity pools
+   - Flash loan protection
+   - Oracle integration
+   - Yield farming rewards
 
-4. [Crafting System](04_crafting_system.md)
-   - Complex recipe and resource management
-   - Dynamic success rate calculations
-   - Quality-based outcome system
-   - Crafting specializations and mastery
-   - Resource market integration
+4. **Crafting System** [`docs/04_crafting_system.md`]
+   - Recipe and resource management
+   - Dynamic success rates
+   - Quality-based outcomes
+   - Specialization system
    - Critical success mechanics
-   - Crafting experience progression
 
-5. [Pet & Mount System](05_pet_mount_system.md)
-   - ERC721-based unique pets and mounts
-   - Advanced bonding mechanics
-   - Evolution and training systems
-   - Synergistic character bonuses
-   - Pet combat and mount racing
-   - Breeding and genetics system
-   - Companion marketplace integration
+5. **Pet & Mount System** [`docs/05_pet_mount_system.md`]
+   - ERC721 unique companions
+   - Evolution and training
+   - Bonding mechanics
+   - Breeding system
+   - Racing and combat features
 
-6. [Ability System](06_ability_system.md)
-   - Flexible ability creation and management
-   - Complex cooldown and resource systems
-   - Effect stacking and duration management
-   - Ability evolution paths
-   - Combo system implementation
-   - Cross-character ability synergies
-   - Analytics and balance monitoring
+6. **Ability System** [`docs/06_ability_system.md`]
+   - Dynamic ability creation
+   - Combo system
+   - Effect management
+   - Resource management
+   - Cross-character synergies
 
-7. [Attribute System](07_attribute_system.md)
-   - Comprehensive attribute calculation engine
-   - Multi-source modifier system
-   - Temporary and permanent buffs
-   - Environmental effect integration
-   - Synergy bonus calculations
-   - Dynamic scaling mechanics
-   - Performance-optimized implementations
+7. **Attribute System** [`docs/07_attribute_system.md`]
+   - Comprehensive calculation engine
+   - Multi-source modifiers
+   - Buff management
+   - Environmental effects
+   - Synergy calculations
 
-## Technical Documentation
+## Getting Started
 
-### [Technical Specifications](TECHNICAL.md)
-- System architecture and design patterns
-- Smart contract interaction flows
-- Gas optimization strategies
-- Upgrade mechanisms
-- Cross-contract communication
-- Event system design
-- Storage optimization
+### Prerequisites
 
-### [Contributing Guidelines](CONTRIBUTING.md)
-- Code style and standards
-- Testing requirements
-- Documentation practices
-- Review process
-- Security considerations
-- Performance requirements
-- Deployment procedures
+- [Foundry](https://getfoundry.sh/) for development and testing
+- [Node.js](https://nodejs.org/) (v16 or higher)
+- [Git](https://git-scm.com/)
 
-## Development Resources
+### Installation
 
-### Smart Contract Integration
-- Contract addresses and deployment information
-- Detailed ABI documentation
-- Integration examples and tutorials
-- Event handling and webhooks
-- Error codes and recovery procedures
-- Gas estimation guidelines
-- Rate limiting and throttling
+```bash
+# Clone the repository
+git clone https://github.com/lcanady/dnd.git
+cd dnd
 
-### Testing Framework
-- Comprehensive test coverage requirements
-- Unit and integration testing guidelines
-- Property-based testing examples
-- Gas optimization test suites
-- Load testing procedures
-- Security test scenarios
-- Regression testing guidelines
+# Install Foundry dependencies
+forge install
 
-### Security Measures
-- Role-based access control implementation
-- Known vulnerability mitigations
-- Security best practices and patterns
-- Emergency response procedures
-- Upgrade mechanisms and timelock systems
-- Monitoring and alerting setup
-- Audit requirements and findings
+# Install development tools
+npm install -g solhint prettier prettier-plugin-solidity slither-analyzer
 
-### Deployment Process
-- Environment-specific deployment checklists
-- Network configuration guidelines
-- Contract verification procedures
-- Post-deployment verification steps
-- Monitoring setup instructions
-- Backup and recovery procedures
-- Maintenance guidelines
+# Copy environment configuration
+cp .env.example .env
 
-## Additional Resources
+# Build contracts
+forge build
 
-### Analytics and Monitoring
+# Run tests
+forge test
+```
+
+### Development Setup
+
+1. Configure environment variables in `.env`:
+   ```
+   INFURA_API_KEY=           # Your Infura API key
+   PRIVATE_KEY=              # Development wallet private key
+   ETHERSCAN_API_KEY=        # For contract verification
+   REPORT_GAS=true          # Enable gas reporting
+   ```
+
+2. Start local development chain:
+   ```bash
+   anvil
+   ```
+
+3. Deploy contracts:
+   ```bash
+   forge script script/Deploy.s.sol --rpc-url localhost --broadcast
+   ```
+
+## Documentation
+
+### Technical Resources
+
+- [Technical Specifications](TECHNICAL.md)
+  - System architecture
+  - Smart contract interactions
+  - Gas optimization strategies
+  - Security measures
+  - Upgrade mechanisms
+
+- [Contributing Guidelines](CONTRIBUTING.md)
+  - Development workflow
+  - Code standards
+  - Testing requirements
+  - Review process
+  - Documentation practices
+
+### Integration Guides
+
+- [Smart Contract Integration](docs/integration/smart_contracts.md)
+  - Contract addresses
+  - ABI documentation
+  - Event handling
+  - Error codes
+  - Rate limiting
+
+- [Testing Framework](docs/testing/framework.md)
+  - Unit testing
+  - Integration testing
+  - Property-based testing
+  - Gas optimization
+  - Security testing
+
+## Security
+
+### Measures and Best Practices
+
+- Role-based access control
+- Reentrancy protection
+- Integer overflow/underflow protection
+- Emergency pause functionality
+- Upgrade timelock system
+
+### Audit Status
+
+- [Security Audit Report](docs/security/audit_report.pdf)
+- [Known Issues](docs/security/SECURITY.md)
+- [Bug Bounty Program](docs/security/BOUNTY.md)
+
+## Performance
+
+### Gas Optimization
+
+- Efficient storage layouts
+- Batch operations support
+- Optimized calculations
+- Memory vs. storage usage
+- Event optimization
+
+### Monitoring
+
 - System health metrics
-- Balance monitoring tools
-- User activity analytics
-- Resource consumption tracking
-- Performance monitoring
-- Security alerts
+- Transaction monitoring
+- Gas usage tracking
 - Economic indicators
+- Security alerts
 
-### Maintenance Procedures
-- Regular maintenance tasks
-- Emergency procedures
-- Upgrade processes
-- Data backup methods
-- Recovery procedures
-- Performance optimization
-- Balance adjustments 
+## Community and Support
+
+- [Discord Server](https://discord.gg/arcanegame)
+- [Documentation Portal](https://docs.arcanegame.com)
+- [GitHub Issues](https://github.com/lcanady/dnd/issues)
+- [Technical Blog](https://blog.arcanegame.com)
+
+## Contributing
+
+Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests. All contributions should follow our coding standards and include appropriate tests and documentation.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [OpenZeppelin](https://openzeppelin.com/) for secure smart contract components
+- [Chainlink](https://chain.link/) for oracle solutions
+- [Foundry](https://getfoundry.sh/) for development framework 
