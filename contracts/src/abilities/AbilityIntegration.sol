@@ -64,9 +64,8 @@ contract AbilityIntegration is Ownable {
 
     /// @notice Apply ability benefits to a crafting attempt
     /// @param characterId ID of the character
-    /// @param _recipeId ID of the recipe being crafted
     /// @return (success boost, fee reduction)
-    function applyCraftingBenefits(uint256 characterId, uint256 _recipeId) external view returns (uint256, uint256) {
+    function applyCraftingBenefits(uint256 characterId) external view returns (uint256, uint256) {
         (, uint256 craftingBoost,,) = abilityContract.getAbilityBenefits(characterId);
         (uint256 feeReduction,,,) = abilityContract.getAbilityBenefits(characterId);
 

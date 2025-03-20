@@ -290,7 +290,7 @@ contract AMMTest is Test {
         vm.stopPrank();
 
         assertEq(ArcanePair(pair).balanceOf(user1), lpBalance, "LP tokens not returned");
-        (uint256 amount, uint256 rewardDebt, uint256 lastStakeTime) = staking.userInfo(0, user1);
+        (uint256 amount,,) = staking.userInfo(0, user1);
         assertEq(amount, 0, "Staked amount not reset");
     }
 

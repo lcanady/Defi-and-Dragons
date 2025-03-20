@@ -25,7 +25,7 @@ contract CharacterWalletTest is Test {
         // Setup equipment
         equipment.setCharacterContract(characterContract);
         // Create test equipment
-        uint256 weaponId = equipment.createEquipment(
+        equipment.createEquipment(
             "Test Weapon",
             "A test weapon",
             5, // strength bonus
@@ -33,7 +33,7 @@ contract CharacterWalletTest is Test {
             0 // magic bonus
         );
 
-        uint256 armorId = equipment.createEquipment(
+        equipment.createEquipment(
             "Test Armor",
             "A test armor",
             0, // strength bonus
@@ -50,7 +50,7 @@ contract CharacterWalletTest is Test {
         equipment.setApprovalForAll(address(wallet), true);
     }
 
-    function testWalletCreation() public {
+    function testWalletCreation() public view {
         assertEq(wallet.owner(), owner);
         assertEq(wallet.characterId(), CHARACTER_ID);
         assertEq(wallet.characterContract(), characterContract);

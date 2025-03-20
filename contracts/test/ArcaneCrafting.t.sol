@@ -62,7 +62,7 @@ contract ArcaneCraftingTest is Test {
         );
 
         // Create VRF subscription
-        uint64 subId = vrfCoordinator.createSubscription();
+        vrfCoordinator.createSubscription();
         vrfCoordinator.fundSubscription(_SUBSCRIPTION_ID, 100 ether);
 
         // Deploy contracts

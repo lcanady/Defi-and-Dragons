@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { Test } from "lib/forge-std/src/Test.sol";
+import { Test } from "../lib/forge-std/src/Test.sol";
 import { AttributeCalculator } from "../src/attributes/AttributeCalculator.sol";
 import { Character } from "../src/Character.sol";
 import { Equipment } from "../src/Equipment.sol";
@@ -168,7 +168,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         vm.stopPrank();
     }
 
-    function testBaseAttributes() public {
+    function testBaseAttributes() public view {
         Types.Stats memory totalStats = calculator.getRawStats(characterId);
 
         // Base stats + equipment bonuses
