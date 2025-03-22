@@ -1,130 +1,97 @@
-# 🎮 Dungeons & DeFi 🪙
+# 🐉 Dungeons & DeFi
 
-> Where epic quests meet DeFi yields! ⚔️💰
+*Where Smart Contracts Meet Dragon Slaying*
 
-A revolutionary blockchain RPG that combines classic dungeon crawling with DeFi mechanics. Forge your destiny, slay monsters, and earn yields - all on-chain! 🏰✨
+A fantasy RPG framework for DeFi interactions, bringing gamification to decentralized finance through quests, combat, and epic adventures.
 
-## ✨ Features
+## 📥 Installation
 
-### 🦸‍♂️ Character System
-- Mint unique hero NFTs with custom stats 🎯
-- Level up through epic quests and battles ⚔️
-- Equip powerful gear to boost your abilities 🛡️
-- Align with different factions (Good, Neutral, Evil) ⚖️
+You can install this package using either Forge or npm:
 
-### 🗡️ Equipment & Items
-- Discover rare weapons and armor (ERC-1155) 🏹
-- Enhance gear through crafting and enchanting ⚒️
-- Trade items in the marketplace 🏪
-- Special abilities and magical effects ✨
-
-### 🎯 Quest System
-- Dynamic quest generation 📜
-- Stat-based challenges 💪
-- Token rewards for completion 💎
-- Strategic cooldown periods ⏳
-
-### 🐉 Game Features
-- Chainlink VRF-powered loot drops 🎲
-- Character-specific wallets 👝
-- Pet & mount system 🐎
-- Crafting mechanics ⚒️
-
-### 💰 DeFi Integration
-- Native game token (ERC-20) 🪙
-- AMM for token swaps 💱
-- Yield farming opportunities 🌾
-- NFT marketplace 🏪
-
-## 🚀 Quick Start
-
-### 📋 Prerequisites
+### Using Forge
 ```bash
-# Required
-✅ Node.js v14+
-✅ Foundry
-✅ MetaMask or Web3 wallet
+forge install lcanady/defi-and-dragons
 ```
 
-### 🛠️ Setup
+### Using npm
 ```bash
-# Clone & Install
-git clone https://github.com/lcanady/dnd.git && cd dnd
-forge install
-
-# Configure
-cp .env.example .env  # Add your keys 🔑
-
-# Test
-forge test  # Make sure everything works! ✅
+npm install @digibear/defi-and-dragons
+# or
+yarn add @digibear/defi-and-dragons
 ```
 
-### 🚀 Deploy
+## 🎮 Features
+
+- **Combat System**: Turn DeFi actions into epic battles
+- **Quest System**: Complete daily and seasonal challenges
+- **Social Features**: Form guilds and tackle group quests
+- **Protocol Integration**: Interact with DeFi protocols through a fantasy RPG lens
+- **Item & Equipment**: NFT-based items and equipment system
+- **Marketplace**: Trade items with other adventurers
+
+## 🛠️ Quick Start
+
+1. Install the package using your preferred package manager:
+
+Using Forge:
 ```bash
-forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY
+forge install lcanady/defi-and-dragons
+```
+
+Using npm:
+```bash
+npm install @digibear/defi-and-dragons
+```
+
+2. Import the contracts:
+
+If installed via Forge:
+```solidity
+import "defi-and-dragons/src/CombatActions.sol";
+import "defi-and-dragons/src/QuestSystem.sol";
+```
+
+If installed via npm:
+```solidity
+import "@digibear/defi-and-dragons/src/CombatActions.sol";
+import "@digibear/defi-and-dragons/src/QuestSystem.sol";
+```
+
+3. Initialize your game components:
+```solidity
+contract MyGame {
+    CombatActions combat;
+    QuestSystem quests;
+
+    constructor() {
+        combat = new CombatActions();
+        quests = new QuestSystem();
+    }
+}
 ```
 
 ## 📚 Documentation
 
-- [📖 System Docs](docs/README.md) - Game mechanics & systems
-- [🔧 API Reference](docs/API.md) - Smart contract details
-- [📐 Technical Specs](docs/TECHNICAL.md) - Architecture & design
-- [🤝 Contributing](docs/CONTRIBUTING.md) - Join the adventure!
+Visit our [documentation](./docs) to learn more about:
+- [Getting Started](./docs/getting-started/index.md)
+- [Game Mechanics](./docs/gameplay/index.md)
+- [Advanced Features](./docs/advanced-mechanics/index.md)
+- [DeFi Integration](./docs/defi/index.md)
 
-## 🔒 Security Features
+## 🧪 Testing
 
-- 🛡️ OpenZeppelin contracts
-- 🎲 Chainlink VRF
-- 🔑 Role-based access
-- 🚫 Reentrancy protection
-- ⏸️ Emergency pause
-- ✅ 100% test coverage
+```bash
+forge test
+```
 
-## 🗺️ Roadmap
+## 🤝 Contributing
 
-### 🏃‍♂️ Phase 1 (Current)
-- Core game mechanics
-- Basic DeFi features
-- Character & equipment systems
-- Initial quest system
+We welcome contributions! Please check out our [Contributing Guide](CONTRIBUTING.md) for guidelines.
 
-### 🏃‍♂️ Phase 2 (Next)
-- Guild system
-- PvP battles
-- Enhanced marketplace
-- More quest types
+## 📜 License
 
-### 🏃‍♂️ Phase 3 (Future)
-- Cross-chain features
-- Mobile interface
-- DAO governance
-- Metaverse integration
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Community
+## 🌟 Acknowledgments
 
-- [🌐 Website](https://dungeonsdefi.com)
-- [💬 Discord](https://discord.gg/dungeonsdefi)
-- [🐦 Twitter](https://twitter.com/dungeonsdefi)
-- [📖 Blog](https://blog.dungeonsdefi.com)
-
-## 📄 License
-
-MIT License - see [LICENSE.md](LICENSE.md)
-
-## 🙏 Acknowledgments
-
-- 🏰 OpenZeppelin
-- 🔗 Chainlink
-- 🛠️ Foundry
-- 🌟 Ethereum community
-
----
-
-<div align="center">
-
-### 🎮 Ready Player One? Let's DeFi! 🚀
-
-[![Discord](https://img.shields.io/discord/123456789?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/dungeonsdefi)
-[![Twitter Follow](https://img.shields.io/twitter/follow/dungeonsdefi?style=social)](https://twitter.com/dungeonsdefi)
-
-</div>
+Built with [Foundry](https://github.com/foundry-rs/foundry) and powered by the spirit of adventure!

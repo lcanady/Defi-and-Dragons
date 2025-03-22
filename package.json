@@ -1,0 +1,40 @@
+{
+  "name": "@digibear/defi-and-dragons",
+  "version": "0.1.0",
+  "description": "A fantasy RPG framework for DeFi interactions - where smart contracts meet dungeon crawling!",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "forge test",
+    "build": "forge build",
+    "format": "forge fmt",
+    "lint": "solhint 'src/**/*.sol'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lcanady/defi-and-dragons.git"
+  },
+  "keywords": [
+    "ethereum",
+    "solidity",
+    "defi",
+    "gaming",
+    "rpg",
+    "blockchain",
+    "smart-contracts",
+    "foundry"
+  ],
+  "author": "lcanady",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lcanady/defi-and-dragons/issues"
+  },
+  "homepage": "https://github.com/lcanady/defi-and-dragons#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+} 
