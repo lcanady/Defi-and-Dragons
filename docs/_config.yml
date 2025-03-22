@@ -1,0 +1,45 @@
+title: DeFi & Dragons
+description: Where Magic Meets DeFi - An Epic Web3 Adventure
+theme: jekyll-theme-midnight
+remote_theme: pages-themes/midnight@v0.2.0
+plugins:
+  - jekyll-remote-theme
+  - jekyll-relative-links
+  - jekyll-seo-tag
+
+# Fantasy theme customization
+colors:
+  header: "#2a0845"
+  gradient-top: "#6441A5"
+  gradient-bottom: "#2a0845"
+  link: "#9B30FF"
+  link-hover: "#B24BF3"
+
+# Navigation
+nav_links:
+  - title: "🗺️ Getting Started"
+    url: /getting-started/
+  - title: "⚔️ Gameplay"
+    url: /gameplay/
+  - title: "💰 DeFi"
+    url: /defi/
+  - title: "🎓 Advanced"
+    url: /advanced-mechanics/
+  - title: "📚 API"
+    url: /api-reference/
+  - title: "❓ FAQ"
+    url: /faq
+  - title: "🔧 Troubleshooting"
+    url: /troubleshooting
+
+# Enable relative links
+relative_links:
+  enabled: true
+  collections: true
+
+# Default layout
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default 
