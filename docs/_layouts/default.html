@@ -18,7 +18,7 @@
 
         <nav class="fantasy-nav">
           {% for link in site.nav_links %}
-            <a href="{{ link.url | relative_url }}" class="nav-link">
+            <a href="{{ site.baseurl }}{{ link.url }}" class="nav-link">
               {{ link.title }}
             </a>
           {% endfor %}
