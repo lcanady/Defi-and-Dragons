@@ -296,4 +296,14 @@ contract SocialQuest is Ownable, ReentrancyGuard {
     function setTrackerApproval(address tracker, bool approved) external onlyOwner {
         approvedTrackers[tracker] = approved;
     }
+
+    /// @notice Get team quest details
+    function getTeamQuest(bytes32 questId) external view returns (TeamQuest memory) {
+        return teamQuests[questId];
+    }
+
+    /// @notice Get referral quest details
+    function getReferralQuest(bytes32 questId) external view returns (ReferralQuest memory) {
+        return referralQuests[questId];
+    }
 } 

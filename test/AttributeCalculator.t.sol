@@ -168,7 +168,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         vm.stopPrank();
     }
 
-    function testBaseAttributes() public view {
+    function testBaseAttributes() public {
         Types.Stats memory totalStats = calculator.getRawStats(characterId);
 
         // Base stats + equipment bonuses
@@ -262,5 +262,18 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         uint256 expectedMultiplier = 10_600; // 10000 + 500 + 100
 
         assertEq(bonusMultiplier, expectedMultiplier, "Incorrect bonus multiplier with deactivated sources");
+    }
+
+    function testCalculateTotalStats() public {
+        (Types.Stats memory totalStats,) = calculator.calculateTotalAttributes(characterId);
+        
+        // Calculate expected stats with multiplier (16100 = 161%)
+        uint256 expectedStrength = (18 * uint256(16100)) / uint256(10000); // Base stats (10 + 5 + 3) * 161%
+        uint256 expectedAgility = (14 * uint256(16100)) / uint256(10000);  // Base stats (8 + 2 + 4) * 161%
+        uint256 expectedMagic = (9 * uint256(16100)) / uint256(10000);     // Base stats (6 + 1 + 2) * 161%
+        
+        assertEq(totalStats.strength, expectedStrength, "Incorrect total strength");
+        assertEq(totalStats.agility, expectedAgility, "Incorrect total agility");
+        assertEq(totalStats.magic, expectedMagic, "Incorrect total magic");
     }
 }

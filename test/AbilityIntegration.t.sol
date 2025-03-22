@@ -78,33 +78,64 @@ contract AbilityIntegrationTest is Test {
         vm.stopPrank();
     }
 
-    function testCalculateAMMFeeReduction() public view {
+    function testGetAMMFeeReduction() public {
         uint256 reduction = integration.calculateAMMFeeReduction(characterId);
         assertEq(reduction, 2000, "Incorrect AMM fee reduction");
     }
 
-    function testCalculateCraftingBoost() public view {
+    function testGetCraftingBoost() public {
         uint256 boost = integration.calculateCraftingBoost(characterId);
         assertEq(boost, 1500, "Incorrect crafting boost");
     }
 
-    function testCalculateVRFReduction() public view {
+    function testGetVRFFeeReduction() public {
         uint256 reduction = integration.calculateVRFReduction(characterId);
         assertEq(reduction, 1000, "Incorrect VRF reduction");
     }
 
-    function testApplyCraftingBenefits() public view {
+    function testGetCombinedBoosts() public {
         (uint256 boost, uint256 feeReduction) = integration.applyCraftingBenefits(characterId);
         assertEq(boost, 1500, "Incorrect crafting boost");
         assertEq(feeReduction, 2000, "Incorrect fee reduction");
     }
 
-    function testApplyAMMBenefits() public view {
+    function testGetAMMFeeReductionWithoutAbility() public {
+        uint256 reduction = integration.calculateAMMFeeReduction(0);
+        assertEq(reduction, 2000, "Incorrect AMM fee reduction");
+    }
+
+    function testGetVRFFeeReductionWithoutAbility() public {
+        uint256 reduction = integration.calculateVRFReduction(0);
+        assertEq(reduction, 1000, "Incorrect VRF reduction");
+    }
+
+    function testCalculateAMMFeeReduction() public {
+        uint256 reduction = integration.calculateAMMFeeReduction(characterId);
+        assertEq(reduction, 2000, "Incorrect AMM fee reduction");
+    }
+
+    function testCalculateCraftingBoost() public {
+        uint256 boost = integration.calculateCraftingBoost(characterId);
+        assertEq(boost, 1500, "Incorrect crafting boost");
+    }
+
+    function testCalculateVRFReduction() public {
+        uint256 reduction = integration.calculateVRFReduction(characterId);
+        assertEq(reduction, 1000, "Incorrect VRF reduction");
+    }
+
+    function testApplyCraftingBenefits() public {
+        (uint256 boost, uint256 feeReduction) = integration.applyCraftingBenefits(characterId);
+        assertEq(boost, 1500, "Incorrect crafting boost");
+        assertEq(feeReduction, 2000, "Incorrect fee reduction");
+    }
+
+    function testApplyAMMBenefits() public {
         uint256 reduction = integration.applyAMMBenefits(characterId);
         assertEq(reduction, 2000, "Incorrect AMM fee reduction");
     }
 
-    function testApplyVRFBenefits() public view {
+    function testApplyVRFBenefits() public {
         uint256 reduction = integration.applyVRFBenefits(characterId);
         assertEq(reduction, 1000, "Incorrect VRF reduction");
     }

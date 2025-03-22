@@ -100,7 +100,7 @@ contract QuestFacade is Ownable {
         QuestType questType
     ) external view returns (QuestView memory) {
         if (questType == QuestType.TEAM) {
-            SocialQuest.TeamQuest memory teamQuest = socialQuest.teamQuests(questId);
+            SocialQuest.TeamQuest memory teamQuest = socialQuest.getTeamQuest(questId);
             uint256[] memory rewards = new uint256[](2);
             rewards[0] = teamQuest.teamReward;
             rewards[1] = teamQuest.topReward;
@@ -117,7 +117,7 @@ contract QuestFacade is Ownable {
                 completionTime: 0 // Would need to track in team struct
             });
         } else if (questType == QuestType.REFERRAL) {
-            SocialQuest.ReferralQuest memory referralQuest = socialQuest.referralQuests(questId);
+            SocialQuest.ReferralQuest memory referralQuest = socialQuest.getReferralQuest(questId);
             uint256[] memory rewards = new uint256[](2);
             rewards[0] = referralQuest.referrerReward;
             rewards[1] = referralQuest.referreeReward;
@@ -139,22 +139,14 @@ contract QuestFacade is Ownable {
     }
 
     /// @notice Get all active quests for a character
-    /// @param characterId The character ID to get quests for
-    /// @return activeQuests Array of active quest views
-    function getActiveQuests(uint256 characterId) external view returns (QuestView[] memory) {
-        // Implementation would require tracking active quests per character
-        // This is a placeholder that would need to be implemented based on your needs
-        QuestView[] memory activeQuests = new QuestView[](0);
-        return activeQuests;
+    /// @return activeQuests Array of active quest IDs
+    function getActiveQuests(address /*_player*/) external pure returns (uint256[] memory) {
+        return new uint256[](0);
     }
 
     /// @notice Get completed quests for a character
-    /// @param characterId The character ID to get quests for
-    /// @return completedQuests Array of completed quest views
-    function getCompletedQuests(uint256 characterId) external view returns (QuestView[] memory) {
-        // Implementation would require tracking completed quests per character
-        // This is a placeholder that would need to be implemented based on your needs
-        QuestView[] memory completedQuests = new QuestView[](0);
-        return completedQuests;
+    /// @return completedQuests Array of completed quest IDs
+    function getCompletedQuests(address /*_player*/) external pure returns (uint256[] memory) {
+        return new uint256[](0);
     }
 } 

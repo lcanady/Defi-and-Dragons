@@ -340,7 +340,7 @@ contract CombatAbilities is Ownable {
     }
 
     // Placeholder - implement based on your character/monster system
-    function getUserElement(uint256 _userId) internal pure returns (Element) {
+    function getUserElement(uint256 /* _userId */) internal pure returns (Element) {
         return Element.NEUTRAL;
     }
 

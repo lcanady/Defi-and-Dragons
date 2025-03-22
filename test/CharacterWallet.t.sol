@@ -50,7 +50,7 @@ contract CharacterWalletTest is Test {
         equipment.setApprovalForAll(address(wallet), true);
     }
 
-    function testWalletCreation() public view {
+    function testInitialization() public {
         assertEq(wallet.owner(), owner);
         assertEq(wallet.characterId(), CHARACTER_ID);
         assertEq(wallet.characterContract(), characterContract);
