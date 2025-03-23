@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./interfaces/Types.sol";
 import "./interfaces/ICharacter.sol";
 import "./interfaces/IGameToken.sol";
 
-contract Quest is Ownable {
+contract Quest is AccessControl {
+    bytes32 public constant QUEST_MANAGER_ROLE = keccak256("QUEST_MANAGER_ROLE");
+    
     ICharacter public immutable character;
     IGameToken public gameToken;
 
@@ -26,17 +28,21 @@ contract Quest is Ownable {
     event QuestStarted(uint256 indexed characterId, uint256 indexed questId);
     event QuestCompleted(uint256 indexed characterId, uint256 indexed questId, uint256 reward);
 
-    constructor(address characterContract) Ownable(msg.sender) {
+    constructor(address characterContract) {
         character = ICharacter(characterContract);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function initialize(address _gameToken) external onlyOwner {
+    function initialize(address _gameToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(address(gameToken) == address(0), "Already initialized");
         gameToken = IGameToken(_gameToken);
     }
 
-    modifier onlyCharacterOwner(uint256 characterId) {
-        require(character.ownerOf(characterId) == msg.sender, "Not character owner");
+    modifier onlyCharacterOwnerOrManager(uint256 characterId) {
+        require(
+            character.ownerOf(characterId) == msg.sender || hasRole(QUEST_MANAGER_ROLE, msg.sender),
+            "Not character owner or quest manager"
+        );
         _;
     }
 
@@ -47,7 +53,7 @@ contract Quest is Ownable {
         uint8 requiredMagic,
         uint256 rewardAmount,
         uint256 cooldown
-    ) external onlyOwner returns (uint256 questId) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (uint256 questId) {
         questId = uint256(
             keccak256(
                 abi.encodePacked(
@@ -72,7 +78,7 @@ contract Quest is Ownable {
         });
     }
 
-    function startQuest(uint256 characterId, uint256 questId) external onlyCharacterOwner(characterId) {
+    function startQuest(uint256 characterId, uint256 questId) external onlyCharacterOwnerOrManager(characterId) {
         require(!activeQuests[questId], "Quest already active");
         require(questTemplates[questId].requiredLevel > 0, "Quest does not exist");
 
@@ -90,7 +96,7 @@ contract Quest is Ownable {
         emit QuestStarted(characterId, questId);
     }
 
-    function completeQuest(uint256 characterId, uint256 questId) external onlyCharacterOwner(characterId) {
+    function completeQuest(uint256 characterId, uint256 questId) external onlyCharacterOwnerOrManager(characterId) {
         require(activeQuests[questId], "Quest not active");
 
         activeQuests[questId] = false;

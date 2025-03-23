@@ -8,6 +8,7 @@ import "../src/GameToken.sol";
 import "../src/Quest.sol";
 import "../src/ItemDrop.sol";
 import "../src/Marketplace.sol";
+import "../src/ProvableRandom.sol";
 
 contract DeployLocal is Script {
     function run() public {
@@ -18,7 +19,8 @@ contract DeployLocal is Script {
 
         // Deploy core contracts
         Equipment equipment = new Equipment();
-        Character character = new Character(address(equipment));
+        ProvableRandom random = new ProvableRandom();
+        Character character = new Character(address(equipment), address(random));
         GameToken gameToken = new GameToken();
 
         // Deploy ItemDrop

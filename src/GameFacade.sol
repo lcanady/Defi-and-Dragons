@@ -106,15 +106,13 @@ contract GameFacade {
     // Character Management
     /**
      * @notice Creates a new character for the player
-     * @param initialStats Initial character stats
      * @param alignment Character alignment
      * @return characterId The ID of the newly created character
      */
     function createCharacter(
-        Types.Stats memory initialStats,
         Types.Alignment alignment
     ) external returns (uint256 characterId) {
-        characterId = character.mintCharacter(msg.sender, initialStats, alignment);
+        characterId = character.mintCharacter(msg.sender, alignment);
         emit CharacterCreated(msg.sender, characterId);
         return characterId;
     }

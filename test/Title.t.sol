@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
 import { Test } from "forge-std/Test.sol";
 import { Title } from "../src/titles/Title.sol";
 import { Character } from "../src/Character.sol";
 import { Equipment } from "../src/Equipment.sol";
 import { Types } from "../src/interfaces/Types.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
 
-contract TitleTest is Test {
+contract TitleTest is Test, IERC721Receiver {
     Title public titleContract;
     Character public character;
     Equipment public equipment;
-
-    address public owner = address(this);
-    address public user1 = makeAddr("user1");
-    address public user2 = makeAddr("user2");
+    ProvableRandom public random;
+    address owner = address(this);
     uint256 public characterId;
 
     function setUp() public {
-        // Deploy contracts
         equipment = new Equipment();
-        character = new Character(address(equipment));
+        random = new ProvableRandom();
+        character = new Character(address(equipment), address(random));
         titleContract = new Title(address(character));
 
-        // Create a character for testing
         characterId = character.mintCharacter(
-            user1, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
+            owner,
+            Types.Alignment.STRENGTH
         );
     }
 
@@ -45,7 +45,7 @@ contract TitleTest is Test {
     function testAssignTitle() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
 
-        vm.startPrank(user1);
+        vm.startPrank(owner);
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
 
@@ -60,7 +60,7 @@ contract TitleTest is Test {
     function testRevokeTitle() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
 
-        vm.startPrank(user1);
+        vm.startPrank(owner);
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
 
@@ -77,7 +77,7 @@ contract TitleTest is Test {
     function testDeactivateTitle() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
 
-        vm.startPrank(user1);
+        vm.startPrank(owner);
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
 
@@ -95,7 +95,7 @@ contract TitleTest is Test {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
         titleContract.deactivateTitle(titleId);
 
-        vm.startPrank(user1);
+        vm.startPrank(owner);
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
     }
@@ -103,8 +103,17 @@ contract TitleTest is Test {
     function testFailUnauthorizedAssignment() public {
         uint256 titleId = titleContract.createTitle("Champion", 500, 300, 200);
 
-        vm.startPrank(user2);
+        vm.startPrank(makeAddr("user2"));
         titleContract.assignTitle(characterId, titleId);
         vm.stopPrank();
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }

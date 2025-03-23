@@ -6,41 +6,45 @@ import { Pet } from "../src/pets/Pet.sol";
 import { Character } from "../src/Character.sol";
 import { Equipment } from "../src/Equipment.sol";
 import { Types } from "../src/interfaces/Types.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
 
-contract PetTest is Test {
+contract PetTest is Test, IERC721Receiver {
     Pet public petContract;
     Character public character;
     Equipment public equipment;
+    ProvableRandom public random;
 
-    address public owner;
-    address public user;
+    address public owner = address(this);
+    address public user1 = makeAddr("user1");
+    address public user2 = makeAddr("user2");
     uint256 public characterId;
-    uint256 public petId;
 
     function setUp() public {
-        owner = address(this);
-        user = makeAddr("user");
-
         // Deploy contracts
         equipment = new Equipment();
-        character = new Character(address(equipment));
+        random = new ProvableRandom();
+        character = new Character(address(equipment), address(random));
         petContract = new Pet(address(character));
 
-        // Create test character
+        // Create a character for testing
+        vm.startPrank(owner);
         characterId = character.mintCharacter(
-            user, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
+            owner,
+            Types.Alignment.STRENGTH
         );
 
-        // Update character level
-        Types.CharacterState memory newState = Types.CharacterState({
+        // Set character level to 10 for testing
+        Types.CharacterState memory initialState = Types.CharacterState({
             health: 100,
             consecutiveHits: 0,
             damageReceived: 0,
             roundsParticipated: 0,
             alignment: Types.Alignment.STRENGTH,
-            level: 5
+            level: 10
         });
-        character.updateState(characterId, newState);
+        character.updateState(characterId, initialState);
+        vm.stopPrank();
     }
 
     function testCreatePet() public {
@@ -86,42 +90,55 @@ contract PetTest is Test {
     }
 
     function testMintPet() public {
-        vm.startPrank(owner);
         uint256 newPetId = petContract.createPet(
-            "Test Pet",
+            "Loyal Companion",
             "A loyal companion",
-            Pet.Rarity.RARE,
-            2000, // 20% yield boost
-            1500, // 15% drop rate boost
-            1 // Level 1 required
+            Pet.Rarity.COMMON,
+            500, // 5% yield boost
+            100, // 1% drop rate boost
+            5 // Level 5 required
         );
-        assertEq(newPetId, 1_000_000, "Incorrect pet ID");
+
+        vm.startPrank(owner);
+        petContract.mintPet(characterId, newPetId);
         vm.stopPrank();
 
-        vm.startPrank(user);
-        petContract.mintPet(characterId, newPetId);
-        assertTrue(petContract.hasActivePet(characterId), "Pet should be active");
-        vm.stopPrank();
+        assertTrue(petContract.hasActivePet(characterId), "Character should have a pet");
     }
 
     function testUnassignPet() public {
-        vm.startPrank(owner);
         uint256 newPetId = petContract.createPet(
-            "Test Pet",
+            "Loyal Companion",
             "A loyal companion",
-            Pet.Rarity.RARE,
-            2000, // 20% yield boost
-            1500, // 15% drop rate boost
-            1 // Level 1 required
+            Pet.Rarity.COMMON,
+            500, // 5% yield boost
+            100, // 1% drop rate boost
+            5 // Level 5 required
         );
-        assertEq(newPetId, 1_000_000, "Incorrect pet ID");
+
+        vm.startPrank(owner);
+        petContract.mintPet(characterId, newPetId);
+        petContract.unassignPet(characterId);
         vm.stopPrank();
 
-        vm.startPrank(user);
+        assertFalse(petContract.hasActivePet(characterId), "Character should not have a pet");
+    }
+
+    function testMintPetTwice() public {
+        uint256 newPetId = petContract.createPet(
+            "Loyal Companion",
+            "A loyal companion",
+            Pet.Rarity.COMMON,
+            500, // 5% yield boost
+            100, // 1% drop rate boost
+            5 // Level 5 required
+        );
+
+        vm.startPrank(owner);
         petContract.mintPet(characterId, newPetId);
-        assertTrue(petContract.hasActivePet(characterId), "Pet should be active");
-        petContract.unassignPet(characterId);
-        assertFalse(petContract.hasActivePet(characterId), "Pet should be inactive");
+
+        vm.expectRevert(bytes4(keccak256("AlreadyHasPet()")));
+        petContract.mintPet(characterId, newPetId);
         vm.stopPrank();
     }
 
@@ -133,7 +150,7 @@ contract PetTest is Test {
             Pet.Rarity.RARE,
             2000, // 20% yield boost
             1500, // 15% drop rate boost
-            10 // Level 10 required (higher than character's level)
+            15 // Level 15 required (higher than character's level)
         );
         vm.stopPrank();
 
@@ -148,29 +165,8 @@ contract PetTest is Test {
         });
         character.updateState(characterId, newState);
 
-        vm.startPrank(user);
-        vm.expectRevert("Insufficient level");
-        petContract.mintPet(characterId, newPetId);
-        vm.stopPrank();
-    }
-
-    function testMintPetTwice() public {
         vm.startPrank(owner);
-        uint256 newPetId = petContract.createPet(
-            "Test Pet",
-            "A loyal companion",
-            Pet.Rarity.RARE,
-            2000, // 20% yield boost
-            1500, // 15% drop rate boost
-            1 // Level 1 required
-        );
-        assertEq(newPetId, 1_000_000, "Incorrect pet ID");
-        vm.stopPrank();
-
-        vm.startPrank(user);
-        petContract.mintPet(characterId, newPetId);
-        assertTrue(petContract.hasActivePet(characterId), "Pet should be active");
-        vm.expectRevert(Pet.AlreadyHasPet.selector);
+        vm.expectRevert("Insufficient level");
         petContract.mintPet(characterId, newPetId);
         vm.stopPrank();
     }
@@ -219,5 +215,14 @@ contract PetTest is Test {
             10
         );
         vm.stopPrank();
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }

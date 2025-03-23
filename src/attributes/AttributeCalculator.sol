@@ -217,22 +217,19 @@ contract AttributeCalculator is Ownable {
         }
 
         // Add alignment bonus based on base stats
-        // Only apply alignment bonus if the stat is strictly greater than others
-        if (
-            state.alignment == Types.Alignment.STRENGTH && baseStats.strength > baseStats.agility
-                && baseStats.strength > baseStats.magic
-        ) {
-            totalBonus += 500; // 5% bonus
-        } else if (
-            state.alignment == Types.Alignment.AGILITY && baseStats.agility > baseStats.strength
-                && baseStats.agility > baseStats.magic
-        ) {
-            totalBonus += 500;
-        } else if (
-            state.alignment == Types.Alignment.MAGIC && baseStats.magic > baseStats.strength
-                && baseStats.magic > baseStats.agility
-        ) {
-            totalBonus += 500;
+        // Apply alignment bonus if the stat is strictly greater than others
+        if (state.alignment == Types.Alignment.STRENGTH) {
+            if (baseStats.strength > baseStats.agility && baseStats.strength > baseStats.magic) {
+                totalBonus += 500; // 5% bonus
+            }
+        } else if (state.alignment == Types.Alignment.AGILITY) {
+            if (baseStats.agility > baseStats.strength && baseStats.agility > baseStats.magic) {
+                totalBonus += 500;
+            }
+        } else if (state.alignment == Types.Alignment.MAGIC) {
+            if (baseStats.magic > baseStats.strength && baseStats.magic > baseStats.agility) {
+                totalBonus += 500;
+            }
         }
 
         // Add level bonus (1% per level)

@@ -6,30 +6,35 @@ import { Mount } from "../src/pets/Mount.sol";
 import { Character } from "../src/Character.sol";
 import { Equipment } from "../src/Equipment.sol";
 import { Types } from "../src/interfaces/Types.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
 
-contract MountTest is Test {
+contract MountTest is Test, IERC721Receiver {
     Mount public mountContract;
     Character public character;
     Equipment public equipment;
+    ProvableRandom public random;
 
-    address public owner;
-    address public user;
+    address public owner = address(this);
+    address public user1 = makeAddr("user1");
+    address public user2 = makeAddr("user2");
     uint256 public characterId;
     uint256 public mountId;
 
     function setUp() public {
-        owner = address(this);
-        user = makeAddr("user");
-
         // Deploy contracts
         equipment = new Equipment();
-        character = new Character(address(equipment));
+        random = new ProvableRandom();
+        character = new Character(address(equipment), address(random));
         mountContract = new Mount(address(character));
 
-        // Create test character
+        // Create a character for testing
+        vm.startPrank(owner);
         characterId = character.mintCharacter(
-            user, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
+            owner,
+            Types.Alignment.STRENGTH
         );
+        vm.stopPrank();
 
         // Create test mount
         mountId = mountContract.createMount(
@@ -107,8 +112,9 @@ contract MountTest is Test {
     }
 
     function testMintMount() public {
-        vm.startPrank(user);
+        vm.startPrank(owner);
         mountContract.mintMount(characterId, mountId);
+        vm.stopPrank();
 
         assertTrue(mountContract.hasActiveMount(characterId), "Should have active mount");
         (uint256 questFeeReduction, uint256 travelTimeReduction, uint256 stakingBoostBps, uint256 lpLockReductionBps) =
@@ -122,11 +128,10 @@ contract MountTest is Test {
         address characterWallet = address(character.characterWallets(characterId));
         assertEq(mountContract.ownerOf(mountId), characterWallet, "Mount should be owned by character wallet");
         assertEq(mountContract.characterToMount(characterId), mountId, "Mount should be assigned to character");
-        vm.stopPrank();
     }
 
     function testUnassignMount() public {
-        vm.startPrank(user);
+        vm.startPrank(owner);
         mountContract.mintMount(characterId, mountId);
 
         // Verify mount is assigned before unassigning
@@ -157,14 +162,14 @@ contract MountTest is Test {
         });
         character.updateState(characterId, newState);
 
-        vm.startPrank(user);
+        vm.startPrank(owner);
         vm.expectRevert(Mount.InsufficientLevel.selector);
         mountContract.mintMount(characterId, mountId); // Should fail, level too low
         vm.stopPrank();
     }
 
     function testMintMountTwice() public {
-        vm.startPrank(user);
+        vm.startPrank(owner);
         mountContract.mintMount(characterId, mountId);
         vm.expectRevert(Mount.AlreadyHasMount.selector);
         mountContract.mintMount(characterId, mountId); // Should fail, already has mount
@@ -172,13 +177,11 @@ contract MountTest is Test {
     }
 
     function testDeactivateMount() public {
-        vm.startPrank(user);
+        vm.startPrank(owner);
         mountContract.mintMount(characterId, mountId);
+        mountContract.deactivateMount(mountId);
         vm.stopPrank();
 
-        // Deactivate mount
-        vm.prank(owner);
-        mountContract.deactivateMount(mountId);
         assertFalse(mountContract.hasActiveMount(characterId), "Mount should be inactive");
 
         (uint256 speedBoost, uint256 staminaBoost, uint256 yieldBoost, uint256 dropRateBoost) =
@@ -268,5 +271,14 @@ contract MountTest is Test {
             10
         );
         vm.stopPrank();
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }

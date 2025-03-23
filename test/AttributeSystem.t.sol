@@ -16,6 +16,7 @@ import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Rec
 import { IERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
 
 contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Receiver {
     using Strings for uint256;
@@ -29,6 +30,7 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
     AttributeCalculator public calculator;
     ItemDrop public itemDrop;
     ArcaneCrafting public crafting;
+    ProvableRandom public random;
 
     // Constants
     uint256 public constant BASE_POINTS = 10_000; // 100% in basis points
@@ -77,7 +79,8 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
     function deployContracts() private {
         // Deploy core contracts
         equipment = new Equipment();
-        character = new Character(address(equipment));
+        random = new ProvableRandom();
+        character = new Character(address(equipment), address(random));
         equipment.setCharacterContract(address(character));
 
         // Deploy providers
@@ -114,9 +117,8 @@ contract AttributeSystemTest is Test, TestHelper, IERC721Receiver, IERC1155Recei
         deployContracts();
         setupItemDropSystem();
 
-        // Create test character
-        baseStats = Types.Stats({strength: 10, agility: 10, magic: 10});
-        characterId = character.mintCharacter(user, baseStats, Types.Alignment.STRENGTH);
+        // Create a character
+        characterId = character.mintCharacter(user, Types.Alignment.STRENGTH);
 
         // Create test equipment
         weaponId = equipment.createEquipment(

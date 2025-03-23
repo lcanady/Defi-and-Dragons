@@ -10,8 +10,10 @@ import { ItemDrop } from "../src/ItemDrop.sol";
 import { Character } from "../src/Character.sol";
 import { Equipment } from "../src/Equipment.sol";
 import { Types } from "../src/interfaces/Types.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-contract AbilityIntegrationTest is Test {
+contract AbilityIntegrationTest is Test, IERC721Receiver {
     AbilityIntegration public integration;
     Ability public ability;
     ArcaneCrafting public crafting;
@@ -19,6 +21,7 @@ contract AbilityIntegrationTest is Test {
     ItemDrop public itemDrop;
     Character public character;
     Equipment public equipment;
+    ProvableRandom public random;
 
     address public owner;
     address public user;
@@ -31,7 +34,8 @@ contract AbilityIntegrationTest is Test {
 
         // Deploy core contracts
         equipment = new Equipment();
-        character = new Character(address(equipment));
+        random = new ProvableRandom();
+        character = new Character(address(equipment), address(random));
 
         // Deploy contracts
         factory = new ArcaneFactory();
@@ -47,7 +51,8 @@ contract AbilityIntegrationTest is Test {
 
         // Create test character
         characterId = character.mintCharacter(
-            user, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
+            user,
+            Types.Alignment.STRENGTH
         );
 
         // Set character level to 5
@@ -179,5 +184,14 @@ contract AbilityIntegrationTest is Test {
             1 hours,
             5
         );
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }

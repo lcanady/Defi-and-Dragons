@@ -118,13 +118,10 @@ contract ArcaneQuestIntegration is Ownable, ReentrancyGuard {
     /// @param _characterId Character ID
     /// @param _questId Quest ID
     function completeQuest(uint256 _characterId, uint256 _questId) external nonReentrant {
-        // Complete the base quest
         questContract.completeQuest(_characterId, _questId);
 
-        // Calculate and apply bonus drop rates
         uint256 dropBonus = calculateDropRateBonus(msg.sender);
         if (dropBonus > 0) {
-            // Request additional random drop with enhanced rates
             itemDrop.requestRandomDrop(msg.sender, dropBonus);
             emit EnhancedRewardClaimed(msg.sender, _questId, dropBonus);
         }

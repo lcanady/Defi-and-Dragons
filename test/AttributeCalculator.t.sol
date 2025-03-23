@@ -12,6 +12,7 @@ import { Types } from "../src/interfaces/Types.sol";
 import { CharacterWallet } from "../src/CharacterWallet.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { IERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
 
 contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
     AttributeCalculator public calculator;
@@ -20,6 +21,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
     Pet public pet;
     Mount public mount;
     Ability public ability;
+    ProvableRandom public random;
 
     address public owner;
     address public user;
@@ -64,7 +66,8 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
 
         // Deploy core contracts
         equipment = new Equipment();
-        character = new Character(address(equipment));
+        random = new ProvableRandom();
+        character = new Character(address(equipment), address(random));
         equipment.setCharacterContract(address(character));
 
         // Deploy calculator
@@ -80,9 +83,8 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         calculator.addProvider(address(mount));
         calculator.addProvider(address(ability));
 
-        // Create test character
-        characterId =
-            character.mintCharacter(user, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH);
+        // Create a character
+        character.mintCharacter(user, Types.Alignment.STRENGTH);
 
         // Get character wallet
         CharacterWallet wallet = character.characterWallets(characterId);
@@ -169,12 +171,16 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
     }
 
     function testBaseAttributes() public {
+        // First get the base stats without equipment
+        Types.Stats memory baseStats = calculator.getBaseStats(characterId);
+        
+        // Get total stats with equipment
         Types.Stats memory totalStats = calculator.getRawStats(characterId);
 
-        // Base stats + equipment bonuses
-        assertEq(totalStats.strength, 18, "Incorrect base strength"); // 10 + 5 + 3
-        assertEq(totalStats.agility, 14, "Incorrect base agility"); // 8 + 2 + 4
-        assertEq(totalStats.magic, 9, "Incorrect base magic"); // 6 + 1 + 2
+        // Verify equipment bonuses are correctly added
+        assertEq(totalStats.strength, baseStats.strength + 8, "Incorrect strength bonus"); // +5 from weapon, +3 from armor
+        assertEq(totalStats.agility, baseStats.agility + 6, "Incorrect agility bonus"); // +2 from weapon, +4 from armor
+        assertEq(totalStats.magic, baseStats.magic + 3, "Incorrect magic bonus"); // +1 from weapon, +2 from armor
     }
 
     function testBonusMultipliers() public {
@@ -193,15 +199,20 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
     }
 
     function testStatBonuses() public {
+        // Get base stats and raw stats
+        Types.Stats memory baseStats = calculator.getBaseStats(characterId);
+        Types.Stats memory rawStats = calculator.getRawStats(characterId);
+
+        // Get individual stat bonuses
         uint256 strengthBonus = calculator.getStatBonus(characterId, 0);
         uint256 agilityBonus = calculator.getStatBonus(characterId, 1);
         uint256 magicBonus = calculator.getStatBonus(characterId, 2);
 
         // Calculate expected bonuses with multiplier
-        uint256 expectedMultiplier = 16_100; // From previous test
-        uint256 expectedStrength = (18 * expectedMultiplier) / 10_000;
-        uint256 expectedAgility = (14 * expectedMultiplier) / 10_000;
-        uint256 expectedMagic = (9 * expectedMultiplier) / 10_000;
+        uint256 expectedMultiplier = 16_100; // Base (10000) + Pet (2000) + Mount (1500) + Ability (2000) + Alignment (500) + Level (100)
+        uint256 expectedStrength = (rawStats.strength * expectedMultiplier) / 10_000;
+        uint256 expectedAgility = (rawStats.agility * expectedMultiplier) / 10_000;
+        uint256 expectedMagic = (rawStats.magic * expectedMultiplier) / 10_000;
 
         assertEq(strengthBonus, expectedStrength, "Incorrect strength bonus");
         assertEq(agilityBonus, expectedAgility, "Incorrect agility bonus");
@@ -235,16 +246,20 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
     }
 
     function testDeactivatedEquipment() public {
+        // Get base stats before deactivating equipment
+        Types.Stats memory baseStats = calculator.getBaseStats(characterId);
+
         // Deactivate equipment
         equipment.deactivateEquipment(weaponId);
         equipment.deactivateEquipment(armorId);
 
+        // Get stats after deactivating equipment
         Types.Stats memory totalStats = calculator.getRawStats(characterId);
 
         // Should only have base stats since equipment is deactivated
-        assertEq(totalStats.strength, 10, "Incorrect strength with deactivated equipment");
-        assertEq(totalStats.agility, 8, "Incorrect agility with deactivated equipment");
-        assertEq(totalStats.magic, 6, "Incorrect magic with deactivated equipment");
+        assertEq(totalStats.strength, baseStats.strength, "Incorrect strength with deactivated equipment");
+        assertEq(totalStats.agility, baseStats.agility, "Incorrect agility with deactivated equipment");
+        assertEq(totalStats.magic, baseStats.magic, "Incorrect magic with deactivated equipment");
     }
 
     function testDeactivatedBonuses() public {
@@ -265,13 +280,22 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
     }
 
     function testCalculateTotalStats() public {
-        (Types.Stats memory totalStats,) = calculator.calculateTotalAttributes(characterId);
+        // Get raw stats (base + equipment)
+        Types.Stats memory rawStats = calculator.getRawStats(characterId);
         
-        // Calculate expected stats with multiplier (16100 = 161%)
-        uint256 expectedStrength = (18 * uint256(16100)) / uint256(10000); // Base stats (10 + 5 + 3) * 161%
-        uint256 expectedAgility = (14 * uint256(16100)) / uint256(10000);  // Base stats (8 + 2 + 4) * 161%
-        uint256 expectedMagic = (9 * uint256(16100)) / uint256(10000);     // Base stats (6 + 1 + 2) * 161%
+        // Calculate total stats with multiplier
+        (Types.Stats memory totalStats, uint256 multiplier) = calculator.calculateTotalAttributes(characterId);
+
+        // Expected multiplier from previous test
+        uint256 expectedMultiplier = 16_100; // Base (10000) + Pet (2000) + Mount (1500) + Ability (2000) + Alignment (500) + Level (100)
         
+        // Calculate expected stats
+        uint256 expectedStrength = (rawStats.strength * expectedMultiplier) / 10_000;
+        uint256 expectedAgility = (rawStats.agility * expectedMultiplier) / 10_000;
+        uint256 expectedMagic = (rawStats.magic * expectedMultiplier) / 10_000;
+
+        // Verify multiplier and stats
+        assertEq(multiplier, expectedMultiplier, "Incorrect multiplier");
         assertEq(totalStats.strength, expectedStrength, "Incorrect total strength");
         assertEq(totalStats.agility, expectedAgility, "Incorrect total agility");
         assertEq(totalStats.magic, expectedMagic, "Incorrect total magic");

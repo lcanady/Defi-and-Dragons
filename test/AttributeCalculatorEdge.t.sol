@@ -9,12 +9,14 @@ import { Character } from "../src/Character.sol";
 import { Equipment } from "../src/Equipment.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { IERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
 
 contract AttributeCalculatorEdgeTest is Test, IERC721Receiver, IERC1155Receiver {
     AttributeCalculator public calculator;
     Character public character;
     Equipment public equipment;
     MockAttributeProvider public mockProvider;
+    ProvableRandom public random;
 
     address public owner;
     uint256 public characterId;
@@ -59,10 +61,12 @@ contract AttributeCalculatorEdgeTest is Test, IERC721Receiver, IERC1155Receiver 
 
     function setUp() public {
         owner = address(this);
+        vm.clearMockedCalls();
 
         // Deploy core contracts
         equipment = new Equipment();
-        character = new Character(address(equipment));
+        random = new ProvableRandom();
+        character = new Character(address(equipment), address(random));
         equipment.setCharacterContract(address(character));
 
         // Deploy calculator
@@ -71,10 +75,90 @@ contract AttributeCalculatorEdgeTest is Test, IERC721Receiver, IERC1155Receiver 
         // Deploy mock provider
         mockProvider = new MockAttributeProvider(2000); // 20% bonus
 
-        // Create test character
-        characterId = character.mintCharacter(
-            owner, Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH
+        // Initialize seed for test contract
+        bytes32 ownerSeed = keccak256(abi.encodePacked(block.timestamp, owner, uint256(0)));
+        vm.startPrank(owner);
+        random.initializeSeed(ownerSeed);
+        vm.stopPrank();
+
+        // Create characters with unique seeds
+        address user1 = address(0x1);
+        address user2 = address(0x2);
+        address user3 = address(0x3);
+        address user4 = address(0x4);
+
+        // Mint character for user1
+        vm.startPrank(user1);
+        bytes32 seed1 = keccak256(abi.encodePacked(block.timestamp, user1, uint256(1)));
+        random.initializeSeed(seed1);
+        uint256[] memory numbers1 = new uint256[](3);
+        numbers1[0] = 15; // High strength
+        numbers1[1] = 12; // Medium agility
+        numbers1[2] = 10; // Low magic
+        vm.mockCall(
+            address(random),
+            abi.encodeWithSelector(ProvableRandom.generateNumbers.selector, 3),
+            abi.encode(numbers1)
         );
+        characterId = character.mintCharacter(user1, Types.Alignment.STRENGTH);
+        // Set character stats explicitly to ensure alignment bonus
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        character.updateStats(characterId, Types.Stats({
+            strength: 15,
+            agility: 12,
+            magic: 10
+        }));
+        vm.stopPrank();
+
+        // Mint character for user2
+        vm.startPrank(user2);
+        bytes32 seed2 = keccak256(abi.encodePacked(block.timestamp, user2, uint256(2)));
+        random.initializeSeed(seed2);
+        uint256[] memory numbers2 = new uint256[](3);
+        numbers2[0] = 10;
+        numbers2[1] = 15; // High agility
+        numbers2[2] = 10;
+        vm.mockCall(
+            address(random),
+            abi.encodeWithSelector(ProvableRandom.generateNumbers.selector, 3),
+            abi.encode(numbers2)
+        );
+        uint256 equalStatsChar = character.mintCharacter(user2, Types.Alignment.MAGIC);
+        vm.stopPrank();
+
+        // Mint character for user3
+        vm.startPrank(user3);
+        bytes32 seed3 = keccak256(abi.encodePacked(block.timestamp, user3, uint256(3)));
+        random.initializeSeed(seed3);
+        uint256[] memory numbers3 = new uint256[](3);
+        numbers3[0] = 10;
+        numbers3[1] = 10;
+        numbers3[2] = 15; // High magic
+        vm.mockCall(
+            address(random),
+            abi.encodeWithSelector(ProvableRandom.generateNumbers.selector, 3),
+            abi.encode(numbers3)
+        );
+        uint256 mismatchedChar = character.mintCharacter(user3, Types.Alignment.MAGIC);
+        vm.stopPrank();
+
+        // Mint character for user4
+        vm.startPrank(user4);
+        bytes32 seed4 = keccak256(abi.encodePacked(block.timestamp, user4, uint256(4)));
+        random.initializeSeed(seed4);
+        uint256[] memory numbers4 = new uint256[](3);
+        numbers4[0] = 15; // High strength
+        numbers4[1] = 10;
+        numbers4[2] = 10;
+        vm.mockCall(
+            address(random),
+            abi.encodeWithSelector(ProvableRandom.generateNumbers.selector, 3),
+            abi.encode(numbers4)
+        );
+        uint256 testCharacterId = character.mintCharacter(user4, Types.Alignment.MAGIC);
+        vm.stopPrank();
     }
 
     function testErrorCases() public {
@@ -89,9 +173,12 @@ contract AttributeCalculatorEdgeTest is Test, IERC721Receiver, IERC1155Receiver 
 
     function testAlignmentBonusEdgeCases() public {
         // Test equal stats case (no alignment bonus)
-        vm.startPrank(owner);
+        address user5 = address(0x5);
+        vm.startPrank(user5);
+        bytes32 seed5 = keccak256(abi.encodePacked(block.timestamp, user5, uint256(5)));
+        random.initializeSeed(seed5);
         uint256 equalStatsChar = character.mintCharacter(
-            owner, Types.Stats({ strength: 10, agility: 10, magic: 10 }), Types.Alignment.STRENGTH
+            user5, Types.Alignment.STRENGTH
         );
         vm.stopPrank();
 
@@ -101,9 +188,12 @@ contract AttributeCalculatorEdgeTest is Test, IERC721Receiver, IERC1155Receiver 
         assertEq(bonusMultiplier, 10_100, "Should not get alignment bonus with equal stats");
 
         // Test mismatched alignment and stats
-        vm.startPrank(owner);
+        address user6 = address(0x6);
+        vm.startPrank(user6);
+        bytes32 seed6 = keccak256(abi.encodePacked(block.timestamp, user6, uint256(6)));
+        random.initializeSeed(seed6);
         uint256 mismatchedChar = character.mintCharacter(
-            owner, Types.Stats({ strength: 6, agility: 10, magic: 8 }), Types.Alignment.STRENGTH
+            user6, Types.Alignment.STRENGTH
         );
         vm.stopPrank();
 
@@ -156,9 +246,9 @@ contract AttributeCalculatorEdgeTest is Test, IERC721Receiver, IERC1155Receiver 
         vm.expectEmit(true, true, true, true);
         emit AttributesCalculated(
             characterId,
-            10, // base strength
-            8, // base agility
-            6, // base magic
+            15, // strength
+            12, // agility
+            10, // magic
             10_600 // base(100%) + alignment(5%) + level(1%)
         );
         calculator.calculateTotalAttributes(characterId);
@@ -175,18 +265,31 @@ contract AttributeCalculatorEdgeTest is Test, IERC721Receiver, IERC1155Receiver 
     }
 
     function testComplexStatInteractions() public {
-        // Create a character with specific stats
+        // Mock random numbers that will result in desired stats after scaling
+        // To get a final stat of X, we need to mock (X - MIN_STAT) + (MAX_STAT - MIN_STAT + 1)
+        // For example, to get 18 after scaling, we mock 13 + 14 = 27
+        uint256[] memory numbers = new uint256[](3);
+        numbers[0] = 27; // Will result in 18 strength after scaling
+        numbers[1] = 24; // Will result in 15 agility after scaling
+        numbers[2] = 21; // Will result in 12 magic after scaling
+        vm.mockCall(
+            address(random),
+            abi.encodeWithSelector(ProvableRandom.generateNumbers.selector, 3),
+            abi.encode(numbers)
+        );
+
+        // Create a character with STRENGTH alignment since strength is highest
         uint256 testCharacterId = character.mintCharacter(
-            address(this), Types.Stats({ strength: 15, agility: 12, magic: 10 }), Types.Alignment.STRENGTH
+            address(this), Types.Alignment.STRENGTH
         );
 
         // Get raw stats
         Types.Stats memory rawStats = calculator.getRawStats(testCharacterId);
 
         // Check raw stats
-        assertEq(rawStats.strength, 15, "Incorrect base strength");
-        assertEq(rawStats.agility, 12, "Incorrect base agility");
-        assertEq(rawStats.magic, 10, "Incorrect base magic");
+        assertEq(rawStats.strength, 18, "Incorrect base strength");
+        assertEq(rawStats.agility, 15, "Incorrect base agility");
+        assertEq(rawStats.magic, 12, "Incorrect base magic");
 
         // Get total stats with multiplier
         (Types.Stats memory totalStats, uint256 multiplier) = calculator.calculateTotalAttributes(testCharacterId);
@@ -195,9 +298,9 @@ contract AttributeCalculatorEdgeTest is Test, IERC721Receiver, IERC1155Receiver 
         assertEq(multiplier, 10_600, "Incorrect multiplier"); // 10000 + 500 (alignment) + 100 (level)
 
         // Verify final stats
-        assertEq(totalStats.strength, (15 * multiplier) / 10_000, "Incorrect final strength");
-        assertEq(totalStats.agility, (12 * multiplier) / 10_000, "Incorrect final agility");
-        assertEq(totalStats.magic, (10 * multiplier) / 10_000, "Incorrect final magic");
+        assertEq(totalStats.strength, (18 * multiplier) / 10_000, "Incorrect final strength");
+        assertEq(totalStats.agility, (15 * multiplier) / 10_000, "Incorrect final agility");
+        assertEq(totalStats.magic, (12 * multiplier) / 10_000, "Incorrect final magic");
     }
 
     function testActiveProvidersLimit() public {

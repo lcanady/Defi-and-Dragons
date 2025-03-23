@@ -9,6 +9,7 @@ import { Character } from "../src/Character.sol";
 import { Equipment } from "../src/Equipment.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { IERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
 
 contract AttributeCalculatorMockTest is Test, IERC721Receiver, IERC1155Receiver {
     AttributeCalculator public calculator;
@@ -17,6 +18,7 @@ contract AttributeCalculatorMockTest is Test, IERC721Receiver, IERC1155Receiver 
     MockAttributeProvider public mockAbility;
     Character public characterContract;
     Equipment public equipmentContract;
+    ProvableRandom public random;
 
     uint256 public characterId;
 
@@ -51,14 +53,23 @@ contract AttributeCalculatorMockTest is Test, IERC721Receiver, IERC1155Receiver 
     function setUp() public {
         // Deploy core contracts first
         equipmentContract = new Equipment();
-        characterContract = new Character(address(equipmentContract));
+        random = new ProvableRandom();
+        characterContract = new Character(address(equipmentContract), address(random));
         equipmentContract.setCharacterContract(address(characterContract));
 
         // Create test character with base stats
         vm.startPrank(address(this));
         characterId = characterContract.mintCharacter(
-            address(this), Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH
+            address(this),
+            Types.Alignment.STRENGTH
         );
+
+        // Set character stats to ensure strength is highest for alignment bonus
+        characterContract.updateStats(characterId, Types.Stats({
+            strength: 15,  // Highest for alignment bonus
+            agility: 8,
+            magic: 6
+        }));
         vm.stopPrank();
 
         // Deploy mock providers with default bonuses
@@ -129,11 +140,24 @@ contract AttributeCalculatorMockTest is Test, IERC721Receiver, IERC1155Receiver 
     function testCharacterSpecificBonuses() public {
         uint256 character1 = characterId;
 
-        // Create second test character
-        vm.startPrank(address(this));
+        // Create second test character with a different address
+        address user2 = address(0x1);
+        vm.startPrank(user2);
+        bytes32 seed2 = keccak256(abi.encodePacked(block.timestamp, user2, uint256(2)));
+        random.initializeSeed(seed2);
         uint256 character2 = characterContract.mintCharacter(
-            address(this), Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH
+            user2,
+            Types.Alignment.STRENGTH
         );
+        vm.stopPrank();
+
+        // Set character stats to ensure alignment bonus
+        vm.startPrank(address(this));
+        characterContract.updateStats(character2, Types.Stats({
+            strength: 15,
+            agility: 12,
+            magic: 10
+        }));
         vm.stopPrank();
 
         // Set different bonuses for different characters
@@ -155,17 +179,39 @@ contract AttributeCalculatorMockTest is Test, IERC721Receiver, IERC1155Receiver 
     }
 
     function testBatchOperations() public {
-        // Create multiple test characters
+        // Create multiple test characters with different addresses
         uint256[] memory characters = new uint256[](3);
         characters[0] = characterId;
 
-        vm.startPrank(address(this));
+        address user2 = address(0x1);
+        vm.startPrank(user2);
+        bytes32 seed2 = keccak256(abi.encodePacked(block.timestamp, user2, uint256(2)));
+        random.initializeSeed(seed2);
         characters[1] = characterContract.mintCharacter(
-            address(this), Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH
+            user2,
+            Types.Alignment.STRENGTH
         );
+        vm.stopPrank();
+
+        address user3 = address(0x2);
+        vm.startPrank(user3);
+        bytes32 seed3 = keccak256(abi.encodePacked(block.timestamp, user3, uint256(3)));
+        random.initializeSeed(seed3);
         characters[2] = characterContract.mintCharacter(
-            address(this), Types.Stats({ strength: 10, agility: 8, magic: 6 }), Types.Alignment.STRENGTH
+            user3,
+            Types.Alignment.STRENGTH
         );
+        vm.stopPrank();
+
+        // Set character stats to ensure alignment bonus
+        vm.startPrank(address(this));
+        for (uint256 i = 1; i < characters.length; i++) {
+            characterContract.updateStats(characters[i], Types.Stats({
+                strength: 15,
+                agility: 12,
+                magic: 10
+            }));
+        }
         vm.stopPrank();
 
         uint256[] memory bonuses = new uint256[](3);
@@ -224,9 +270,10 @@ contract AttributeCalculatorMockTest is Test, IERC721Receiver, IERC1155Receiver 
     function testBaseStats() public {
         (Types.Stats memory totalStats,) = calculator.calculateTotalAttributes(characterId);
 
-        // Base stats should be multiplied by total bonus multiplier (16100 = 161%)
-        // Perform multiplication before division to maintain precision
-        uint256 expectedStrength = (10 * uint256(16_100)) / uint256(10_000);
+        // Base stats are: strength=15, agility=8, magic=6
+        // Total multiplier is 16100 (161%)
+        // Calculate expected values with integer arithmetic
+        uint256 expectedStrength = (15 * uint256(16_100)) / uint256(10_000);
         uint256 expectedAgility = (8 * uint256(16_100)) / uint256(10_000);
         uint256 expectedMagic = (6 * uint256(16_100)) / uint256(10_000);
 

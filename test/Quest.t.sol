@@ -6,6 +6,7 @@ import "../src/Character.sol";
 import "../src/GameToken.sol";
 import "../src/Quest.sol";
 import "../src/interfaces/Types.sol";
+import "../src/ProvableRandom.sol";
 
 contract QuestTest is Test {
     Character public character;
@@ -14,13 +15,15 @@ contract QuestTest is Test {
     address public user;
     uint256 public characterId;
     uint256 public questId;
+    ProvableRandom public random;
 
     function setUp() public {
         user = address(0x1);
         vm.startPrank(address(this)); // Start as test contract (owner)
 
         // Deploy contracts
-        character = new Character(address(0)); // Mock equipment address
+        random = new ProvableRandom();
+        character = new Character(address(0), address(random)); // Mock equipment address
         gameToken = new GameToken();
         quest = new Quest(address(character));
         quest.initialize(address(gameToken));
@@ -33,8 +36,8 @@ contract QuestTest is Test {
         // Setup initial state
         Types.Stats memory stats = Types.Stats({ strength: 40, agility: 30, magic: 30 });
 
-        // Create and setup character
-        characterId = character.mintCharacter(user, stats, Types.Alignment.STRENGTH);
+        // Create a character
+        characterId = character.mintCharacter(user, Types.Alignment.STRENGTH);
 
         // Create a basic quest
         vm.stopPrank();
