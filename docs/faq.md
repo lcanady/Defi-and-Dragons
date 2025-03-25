@@ -5,21 +5,17 @@ Welcome to the grand hall of knowledge! Here you'll find answers to the most com
 ## 🎮 Getting Started
 
 ### Q: What is DeFi & Dragons?
-A: DeFi & Dragons is a revolutionary GameFi protocol that combines traditional RPG mechanics with DeFi functionality. Players can create characters, embark on quests, and earn rewards through both combat and financial activities.
+A: DeFi & Dragons is an innovative GameFi protocol that combines the thrill of fantasy role-playing with blockchain technology. Create unique characters, equip them with magical NFT items, and prepare for epic adventures!
 
 ### Q: How do I start playing?
 A: To begin your adventure:
 1. Connect your Web3 wallet
-2. Create a character
-3. Claim your starter pack
-4. Complete the tutorial quest
+2. Create a character by calling `mintCharacter`
+3. Your character will receive random attributes based on your chosen alignment
+4. Equip your hero with weapons and armor
 
 ### Q: What networks are supported?
-A: Currently, we support:
-- Ethereum Mainnet
-- Arbitrum
-- Optimism
-- Polygon
+A: Currently, we're testing on Ethereum test networks. Stay tuned for mainnet deployment announcements!
 
 ## 💰 Economics
 
@@ -44,28 +40,30 @@ Multiple ways:
 - Crafting: Variable resource costs
 - Quest Entry: Some quests require stakes
 
-## ⚔️ Gameplay
+## ⚔️ Characters & Equipment
 
-### Q: How does combat work?
-Combat is tied to DeFi actions:
-- Trading triggers attacks
-- Staking enables defensive moves
-- Large trades can trigger critical hits
-- Successful yields restore HP
+### Q: How do character stats work?
+A: Each character has three primary attributes:
+- **Strength**: Physical might and combat prowess (5-18)
+- **Agility**: Swiftness and dexterity (5-18)
+- **Magic**: Command over arcane forces (5-18)
 
-### Q: What are the character classes?
-Characters are flexible and defined by:
-- Attribute distribution
-- Equipment choices
-- Active abilities
-- Pet companions
+Total attribute points will always equal 45, distributed based on your chosen alignment.
 
-### Q: How do I level up?
-Progress through:
-1. Completing quests
-2. Winning battles
-3. DeFi participation
-4. Achievement milestones
+### Q: What are alignments?
+A: There are three sacred paths:
+1. **Path of Strength**: Favors physical might
+2. **Path of Agility**: Favors swiftness
+3. **Path of Magic**: Favors arcane power
+
+Your alignment influences how your initial stats are distributed.
+
+### Q: How does equipment work?
+A: Equipment consists of two slots:
+- **Weapon**: Your primary tool of combat
+- **Armor**: Your protective gear
+
+Each piece of equipment is a unique NFT stored in your character's personal wallet.
 
 ## 🎯 Quests
 
@@ -140,48 +138,43 @@ Explained in RPG terms:
 
 ## 🔧 Technical
 
-### Q: What wallets are supported?
-Compatible wallets:
-- MetaMask
-- WalletConnect
-- Coinbase Wallet
-- Trust Wallet
+### Q: How do I manage my character's equipment?
+A: Use these commands:
+```solidity
+// Equip items
+await character.equip(characterId, weaponId, armorId);
 
-### Q: How do I recover my account?
-Account recovery through:
-1. Wallet recovery phrase
-2. Connected social accounts
-3. Support assistance
+// Unequip items
+await character.unequip(characterId, true, false); // true for weapon, false for armor
+```
+
+### Q: How do I view my character's stats?
+A: Use the `getCharacter` function:
+```solidity
+const {stats, equipment, state} = await character.getCharacter(characterId);
+```
 
 ### Q: Are the contracts audited?
-Security measures:
-- Multiple audits completed
-- Bug bounty program active
-- Regular security reviews
-- Insurance coverage
+A: Our contracts are currently in active development. Security is our top priority, and we'll announce audit results before mainnet deployment.
+
+## 🔮 Future Features
+
+The following features are planned for future releases:
+- Quest System
+- Marketplace
+- Social Adventures
+- DeFi Integration
+- Combat System
+
+Stay tuned for updates on these exciting additions to our magical realm!
 
 ## 🤝 Community
 
-### Q: How do I join a team?
-Team participation:
-1. Find an active team quest
-2. Form a team with 2-5 players
-3. Meet quest requirements
-4. Contribute to team goals
-
-### Q: What are the benefits of team play?
-Team benefits include:
-- Shared quest rewards
-- Top contributor bonuses
-- Enhanced item drop rates
-- Collaborative boss fights
-- Team achievement tracking
-
-### Q: How can I contribute?
-Ways to help:
-1. Join team quests
-2. Participate in seasonal events
-3. Help new players through referrals
-4. Contribute to protocol quests
+### Q: How can I get involved?
+Ways to join our fellowship:
+1. Join our [Discord](https://discord.gg/defi-dragons)
+2. Follow development on [GitHub](https://github.com/defi-dragons)
+3. Share feedback and suggestions
+4. Help test new features
 
 May these answers light your path, brave adventurer! 🌟 

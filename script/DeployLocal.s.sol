@@ -9,6 +9,8 @@ import "../src/Quest.sol";
 import "../src/ItemDrop.sol";
 import "../src/Marketplace.sol";
 import "../src/ProvableRandom.sol";
+import "../src/CombatQuest.sol";
+import "../src/CombatAbilities.sol";
 
 contract DeployLocal is Script {
     function run() public {
@@ -27,6 +29,19 @@ contract DeployLocal is Script {
         ItemDrop itemDrop = new ItemDrop();
         itemDrop.initialize(address(equipment));
 
+        // Deploy CombatAbilities
+        CombatAbilities abilities = new CombatAbilities(deployer);
+        abilities.transferOwnership(deployer);
+
+        // Deploy CombatQuest with ItemDrop
+        CombatQuest combatQuest = new CombatQuest(
+            address(character),
+            address(gameToken),
+            address(abilities),
+            address(itemDrop),
+            deployer // Set deployer as initial owner
+        );
+
         // Deploy and initialize Quest
         Quest quest = new Quest(address(character));
         quest.initialize(address(gameToken));
@@ -41,6 +56,7 @@ contract DeployLocal is Script {
         // Setup permissions
         bytes32 MINTER_ROLE = gameToken.MINTER_ROLE();
         gameToken.grantRole(MINTER_ROLE, address(quest));
+        gameToken.grantRole(MINTER_ROLE, address(combatQuest));
 
         bytes32 EQUIPMENT_MINTER_ROLE = equipment.MINTER_ROLE();
         equipment.grantRole(EQUIPMENT_MINTER_ROLE, address(itemDrop));

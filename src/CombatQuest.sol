@@ -8,6 +8,7 @@ import "./interfaces/ICharacter.sol";
 import "./interfaces/IGameToken.sol";
 import "./interfaces/Types.sol";
 import "./CombatAbilities.sol";
+import "./ItemDrop.sol";
 
 /// @title CombatQuest
 /// @notice Manages combat-based quests including boss fights and monster hunts
@@ -17,6 +18,7 @@ contract CombatQuest is Ownable, ReentrancyGuard {
     ICharacter public immutable character;
     IGameToken public immutable gameToken;
     CombatAbilities public immutable abilities;
+    ItemDrop public immutable itemDrop;
 
     struct Monster {
         string name;
@@ -38,6 +40,7 @@ contract CombatQuest is Ownable, ReentrancyGuard {
         uint256 participants;   // Number of participants
         bool defeated;          // Whether boss was defeated
         mapping(uint256 => uint256) damageDealt;  // Character => damage dealt
+        uint256[] participantIds;  // Array of character IDs that participated
     }
 
     struct Hunt {
@@ -61,10 +64,11 @@ contract CombatQuest is Ownable, ReentrancyGuard {
     }
 
     struct LootTable {
-        string[] items;           // Possible items
+        uint256[] itemIds;        // Equipment IDs that can drop
         uint256[] weights;        // Drop weights
         uint256 totalWeight;      // Sum of weights
         uint256 dropChance;       // Chance to drop any item (100 = 1%)
+        uint256 dropRateBonus;    // Bonus to drop rates (100 = 1%)
     }
 
     // Monster ID => Monster details
@@ -100,16 +104,20 @@ contract CombatQuest is Ownable, ReentrancyGuard {
     event MonsterSlain(bytes32 indexed huntId, uint256 indexed characterId, uint256 reward);
     event HuntCompleted(bytes32 indexed huntId, uint256 indexed characterId, uint256 totalReward);
     event AbilityUsed(bytes32 indexed monsterId, bytes32 indexed abilityId, uint256 indexed targetId);
-    event LootDropped(bytes32 indexed monsterId, uint256 indexed characterId, string item);
+    event LootDropped(bytes32 indexed monsterId, uint256 indexed characterId, uint256 itemId);
+    event MonsterToggled(bytes32 indexed monsterId, bool active);
 
     constructor(
         address _character,
         address _gameToken,
-        address _abilities
-    ) Ownable(msg.sender) {
+        address _abilities,
+        address _itemDrop,
+        address initialOwner
+    ) Ownable(initialOwner) {
         character = ICharacter(_character);
         gameToken = IGameToken(_gameToken);
         abilities = CombatAbilities(_abilities);
+        itemDrop = ItemDrop(_itemDrop);
     }
 
     /// @notice Create a new monster
@@ -145,9 +153,17 @@ contract CombatQuest is Ownable, ReentrancyGuard {
     function startBossFight(
         bytes32 monsterId,
         uint256 duration
-    ) external onlyOwner returns (bytes32) {
+    ) external returns (bytes32) {
         Monster storage monster = monsters[monsterId];
         require(monster.active && monster.isBoss, "Not an active boss");
+        
+        // Check required items first
+        for (uint i = 0; i < monster.requiredItems.length; i++) {
+            require(hasRequiredItem(msg.sender, monster.requiredItems[i]), "Missing required item");
+        }
+        
+        // Then check ownership
+        require(owner() == msg.sender, "Ownable: caller is not the owner");
         
         bytes32 fightId = keccak256(abi.encodePacked(monsterId, block.timestamp));
         BossFight storage fight = bossFights[fightId];
@@ -158,6 +174,12 @@ contract CombatQuest is Ownable, ReentrancyGuard {
         
         emit BossFightStarted(fightId, monsterId, block.timestamp);
         return fightId;
+    }
+
+    /// @notice Check if a player has a required item
+    function hasRequiredItem(address player, string memory itemName) internal view returns (bool) {
+        // TODO: Implement item checking logic
+        return false;
     }
 
     /// @notice Attack a boss
@@ -189,6 +211,7 @@ contract CombatQuest is Ownable, ReentrancyGuard {
         // Record damage and update fight status
         if (fight.damageDealt[characterId] == 0) {
             fight.participants++;
+            fight.participantIds.push(characterId);
         }
         
         fight.damageDealt[characterId] += damage;
@@ -215,11 +238,19 @@ contract CombatQuest is Ownable, ReentrancyGuard {
         uint256 totalReward = boss.rewardBase * (100 + fight.participants) / 100;
         
         // Distribute rewards proportionally to damage dealt
-        for (uint256 i = 0; i < fight.participants; i++) {
-            uint256 characterId = uint256(keccak256(abi.encodePacked(fightId, i)));
+        for (uint256 i = 0; i < fight.participantIds.length; i++) {
+            uint256 characterId = fight.participantIds[i];
             if (fight.damageDealt[characterId] > 0) {
+                address player = character.ownerOf(characterId);
                 uint256 share = (fight.damageDealt[characterId] * totalReward) / fight.totalDamage;
-                gameToken.mint(character.ownerOf(characterId), share);
+                gameToken.mint(player, share);
+                
+                // Handle item drops for each participant
+                LootTable storage lootTable = lootTables[fight.monsterId];
+                if (lootTable.itemIds.length > 0) {
+                    // Request a random drop with the player's drop rate bonus
+                    itemDrop.requestRandomDrop(player, lootTable.dropRateBonus);
+                }
             }
         }
 
@@ -404,13 +435,15 @@ contract CombatQuest is Ownable, ReentrancyGuard {
     /// @notice Set monster loot table
     function setLootTable(
         bytes32 monsterId,
-        string[] calldata items,
+        uint256[] calldata itemIds,
         uint256[] calldata weights,
-        uint256 dropChance
+        uint256 dropChance,
+        uint256 dropRateBonus
     ) external onlyOwner {
-        require(items.length == weights.length, "Array length mismatch");
-        require(items.length > 0, "No items provided");
+        require(itemIds.length == weights.length, "Array length mismatch");
+        require(itemIds.length > 0, "No items provided");
         require(dropChance <= 10000, "Invalid drop chance"); // Max 100%
+        require(dropRateBonus <= 10000, "Invalid drop rate bonus"); // Max 100%
         
         uint256 totalWeight = 0;
         for (uint256 i = 0; i < weights.length; i++) {
@@ -418,10 +451,11 @@ contract CombatQuest is Ownable, ReentrancyGuard {
         }
         
         lootTables[monsterId] = LootTable({
-            items: items,
+            itemIds: itemIds,
             weights: weights,
             totalWeight: totalWeight,
-            dropChance: dropChance
+            dropChance: dropChance,
+            dropRateBonus: dropRateBonus
         });
     }
 
@@ -465,14 +499,18 @@ contract CombatQuest is Ownable, ReentrancyGuard {
     /// @notice Process loot drops for a monster kill
     function processLootDrop(bytes32 monsterId, uint256 characterId) internal {
         LootTable storage loot = lootTables[monsterId];
-        if (loot.items.length == 0) return;
+        if (loot.itemIds.length == 0) return;
+        
+        // Request random drop through ItemDrop contract
+        address player = character.ownerOf(characterId);
+        uint256 requestId = itemDrop.requestRandomDrop(player, loot.dropRateBonus);
         
         // Check if any item drops
         uint256 dropRoll = uint256(keccak256(abi.encodePacked(
             block.timestamp,
             block.prevrandao,
-            monsterId,
-            characterId
+            characterId,
+            requestId
         ))) % 10000;
         
         if (dropRoll >= loot.dropChance) return;
@@ -481,20 +519,36 @@ contract CombatQuest is Ownable, ReentrancyGuard {
         uint256 rand = uint256(keccak256(abi.encodePacked(
             block.timestamp,
             block.prevrandao,
-            monsterId,
             characterId,
-            dropRoll
+            requestId
         ))) % loot.totalWeight;
         
         uint256 cumulative = 0;
         for (uint256 i = 0; i < loot.weights.length; i++) {
             cumulative += loot.weights[i];
             if (rand < cumulative) {
-                // Here you would integrate with your item system
-                // For now, we just emit an event
-                emit LootDropped(monsterId, characterId, loot.items[i]);
+                // Request a random drop for the selected item
+                itemDrop.requestRandomDrop(player, loot.dropRateBonus);
+                emit LootDropped(monsterId, characterId, loot.itemIds[i]);
                 break;
             }
         }
+    }
+
+    function toggleMonster(bytes32 monsterId, bool active) external onlyOwner {
+        Monster storage monster = monsters[monsterId];
+        require(monster.level > 0, "Monster does not exist");
+        monster.active = active;
+        emit MonsterToggled(monsterId, active);
+    }
+
+    function getLootTable(bytes32 monsterId) external view returns (
+        uint256[] memory itemIds,
+        uint256[] memory weights,
+        uint256 dropChance,
+        uint256 dropRateBonus
+    ) {
+        LootTable storage loot = lootTables[monsterId];
+        return (loot.itemIds, loot.weights, loot.dropChance, loot.dropRateBonus);
     }
 } 

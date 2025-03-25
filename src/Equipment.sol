@@ -219,4 +219,14 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
     {
         return super.supportsInterface(interfaceId);
     }
+
+    function getEquipmentCount() external view returns (uint256) {
+        return _nextTokenId - 1;
+    }
+
+    function getEquipmentInfo(uint256 equipmentId) external view returns (string memory name, string memory description, bool isActive) {
+        require(_exists[equipmentId], "Equipment does not exist");
+        Types.EquipmentStats memory stats = equipmentStats[equipmentId];
+        return (stats.name, stats.description, stats.isActive);
+    }
 }

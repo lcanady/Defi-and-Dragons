@@ -81,7 +81,7 @@ contract CombatAbilities is Ownable {
     event ComboAchieved(bytes32 indexed comboId, uint256 indexed userId, uint256 bonusMultiplier);
     event ElementalResonance(uint256 indexed userId, Element element, uint256 bonus);
 
-    constructor() Ownable(msg.sender) {
+    constructor(address initialOwner) Ownable(initialOwner) {
         // Initialize elemental effectiveness
         setupElementalEffectiveness();
     }
