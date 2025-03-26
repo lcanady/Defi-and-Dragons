@@ -170,7 +170,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
         vm.stopPrank();
     }
 
-    function testBaseAttributes() public {
+    function testBaseAttributes() public view {
         // First get the base stats without equipment
         Types.Stats memory baseStats = calculator.getBaseStats(characterId);
         
@@ -199,8 +199,7 @@ contract AttributeCalculatorTest is Test, IERC721Receiver, IERC1155Receiver {
     }
 
     function testStatBonuses() public {
-        // Get base stats and raw stats
-        Types.Stats memory baseStats = calculator.getBaseStats(characterId);
+        // Get raw stats
         Types.Stats memory rawStats = calculator.getRawStats(characterId);
 
         // Get individual stat bonuses
