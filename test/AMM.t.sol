@@ -16,6 +16,7 @@ import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Rec
 import { Character } from "../src/Character.sol";
 import { Types } from "../src/interfaces/Types.sol";
 import { ProvableRandom } from "../src/ProvableRandom.sol";
+import { Party } from "../src/Party.sol";
 
 contract AMMTest is Test, IERC721Receiver {
     ArcaneFactory public factory;
@@ -29,11 +30,13 @@ contract AMMTest is Test, IERC721Receiver {
     Character public character;
     Equipment public equipment;
     ProvableRandom public random;
+    Party public party;
 
     address public owner = address(this);
     address public user1 = makeAddr("user1");
-    address public user2 = makeAddr("user2");
+    address public user2 = address(2);
     uint256 public characterId;
+    Quest.QuestObjective[] public objectives;
 
     function setUp() public {
         // Deploy tokens
@@ -46,31 +49,26 @@ contract AMMTest is Test, IERC721Receiver {
         staking = new ArcaneStaking(IERC20(address(gameToken)), 100e18); // 100 tokens per block
 
         // Deploy core game contracts
-        equipment = new Equipment();
         random = new ProvableRandom();
+        character = new Character(address(0), address(random));
+        equipment = new Equipment(address(character));
         character = new Character(address(equipment), address(random));
+        party = new Party(address(character));
+        questContract = new Quest(address(character), address(party));
 
         // Create a character for testing
         vm.startPrank(owner);
-        characterId = character.mintCharacter(
-            owner,
-            Types.Alignment.STRENGTH
-        );
+        characterId = character.mintCharacter(owner, Types.Alignment.STRENGTH);
 
         // Deploy Quest contract as owner
         vm.startPrank(owner);
-        questContract = new Quest(address(character));
         questContract.initialize(address(gameToken));
         vm.stopPrank();
 
         // Deploy quest integration
-        itemDrop = new ItemDrop();
+        itemDrop = new ItemDrop(address(random));
         itemDrop.initialize(address(equipment));
-        questIntegration = new ArcaneQuestIntegration(
-            address(factory),
-            address(questContract),
-            address(itemDrop)
-        );
+        questIntegration = new ArcaneQuestIntegration(address(factory), address(questContract), address(itemDrop));
 
         // Set up permissions
         vm.startPrank(owner);
@@ -91,6 +89,11 @@ contract AMMTest is Test, IERC721Receiver {
         gameToken.mint(user2, 1000e18);
         stableToken.mint(user1, 1000e18);
         stableToken.mint(user2, 1000e18);
+
+        // Initialize quest objectives
+        objectives.push(
+            Quest.QuestObjective({ targetValue: 5, currentValue: 0, objectiveType: questContract.COMBAT_COMPLETED() })
+        );
     }
 
     function testCreatePair() public {
@@ -194,7 +197,7 @@ contract AMMTest is Test, IERC721Receiver {
         gameToken.approve(address(router), 100e18);
         stableToken.approve(address(router), 100e18);
         router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 0, 0, user1);
-        
+
         // Get LP token and approve staking
         address pair = factory.getPair(address(gameToken), address(stableToken));
         ArcanePair(pair).approve(address(staking), type(uint256).max);
@@ -245,7 +248,7 @@ contract AMMTest is Test, IERC721Receiver {
         gameToken.approve(address(router), 100e18);
         stableToken.approve(address(router), 100e18);
         router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 0, 0, user1);
-        
+
         // Get LP token and approve staking
         address pair = factory.getPair(address(gameToken), address(stableToken));
         ArcanePair(pair).approve(address(staking), type(uint256).max);
@@ -327,7 +330,21 @@ contract AMMTest is Test, IERC721Receiver {
         questIntegration.setQuestTierLPRequirement(1, 10e18);
 
         // Create quest as owner
-        uint256 questId = questContract.createQuest(1, 1, 1, 1, 100e18, 0);
+        uint256 questId = questContract.createQuest(
+            1, // requiredLevel
+            1, // requiredStrength
+            1, // requiredAgility
+            1, // requiredMagic
+            100e18, // rewardAmount
+            0, // cooldown
+            false, // supportsParty
+            0, // maxPartySize
+            0, // partyBonusPercent
+            false, // isRaid
+            0, // maxParties
+            Quest.QuestType.COMBAT, // questType
+            objectives // objectives array
+        );
 
         // Transfer character to user1
         character.transferFrom(owner, user1, characterId);
@@ -337,15 +354,7 @@ contract AMMTest is Test, IERC721Receiver {
         vm.startPrank(user1);
         gameToken.approve(address(router), 100e18);
         stableToken.approve(address(router), 100e18);
-        router.addLiquidity(
-            address(gameToken),
-            address(stableToken),
-            100e18,
-            100e18,
-            0,
-            0,
-            user1
-        );
+        router.addLiquidity(address(gameToken), address(stableToken), 100e18, 100e18, 0, 0, user1);
 
         // Start and complete quest through questIntegration
         questIntegration.startQuest(characterId, questId);
@@ -434,12 +443,7 @@ contract AMMTest is Test, IERC721Receiver {
         vm.stopPrank();
     }
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 }

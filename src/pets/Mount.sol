@@ -2,17 +2,23 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
+import "../interfaces/ICharacter.sol";
 import "../interfaces/Types.sol";
+import "../interfaces/Errors.sol";
 import "../interfaces/IAttributeProvider.sol";
 import "../Character.sol";
 
 /// @title Mount
 /// @notice NFT contract for mounts that provide travel and economic benefits
-contract Mount is ERC721, Ownable, IAttributeProvider {
+contract Mount is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, IAttributeProvider {
+    using Math for uint256;
+
     // Custom errors
     error BoostTooHigh();
-    error NotCharacterOwner();
     error AlreadyHasMount();
     error InsufficientLevel();
     error MountNotActive();
@@ -68,7 +74,8 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
     event MountActivated(uint256 indexed mountId);
     event MountDeactivated(uint256 indexed mountId);
 
-    constructor(address _characterContract) ERC721("Game Mount", "MOUNT") Ownable(msg.sender) {
+    constructor(address _characterContract) ERC721("Game Mount", "MOUNT") Ownable() {
+        _transferOwnership(msg.sender);
         characterContract = Character(_characterContract);
         _nextMountId = 2_000_000;
     }
@@ -295,7 +302,31 @@ contract Mount is ERC721, Ownable, IAttributeProvider {
         return Types.AttributeBonuses(mount.yieldBoost, mount.dropRateBoost);
     }
 
-    function _exists(uint256 tokenId) internal view virtual returns (bool) {
-        return _ownerOf(tokenId) != address(0);
+    function _exists(uint256 tokenId) internal view virtual override returns (bool) {
+        return super._exists(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721Enumerable, ERC721URIStorage)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
+        return super.tokenURI(tokenId);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize)
+        internal
+        override(ERC721, ERC721Enumerable)
+    {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+    }
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
     }
 }

@@ -4,18 +4,33 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/interfaces/IERC165.sol";
 import "./interfaces/Types.sol";
 import "./interfaces/IEquipment.sol";
 import "./interfaces/Errors.sol";
 import "./interfaces/ICharacter.sol";
 
 contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
+    // Packed equipment stats for gas optimization
+    struct PackedEquipmentStats {
+        uint8 strengthBonus;
+        uint8 agilityBonus;
+        uint8 magicBonus;
+        bool isActive;
+        Types.Alignment statAffinity;
+        string name;
+        string description;
+    }
+
     // State variables
-    mapping(uint256 => Types.EquipmentStats) public equipmentStats;
+    mapping(uint256 => PackedEquipmentStats) public equipmentStats;
     mapping(uint256 => bool) private _exists;
     mapping(uint256 => Types.SpecialAbility[]) public specialAbilities;
-    mapping(uint256 => mapping(uint256 => mapping(uint256 => uint256))) public abilityCooldowns;
-    uint256 private _nextTokenId = 1; // Start from 1 instead of 0
+
+    // Optimized cooldown storage - pack characterId, equipmentId, and abilityIndex into single slot
+    mapping(bytes32 => uint40) public abilityCooldowns; // Using uint40 for timestamps (sufficient until year 2104)
+
+    uint64 private _nextTokenId = 1; // Start from 1, reduced from uint256
     address private _characterContract;
     address private _itemDrop;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -24,41 +39,48 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
     event EquipmentCreated(uint256 indexed tokenId, string name, string description);
     event EquipmentActivated(uint256 indexed tokenId);
     event EquipmentDeactivated(uint256 indexed tokenId);
+    event CharacterContractUpdated(address indexed newContract);
 
-    constructor() ERC1155("") Ownable(msg.sender) {
+    constructor(address characterContract) ERC1155("") Ownable() {
+        if (characterContract == address(0)) revert InvalidCharacterContract();
+        _characterContract = characterContract;
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
     }
 
     modifier onlyCharacterContract() {
-        require(msg.sender == _characterContract, "Only character contract");
+        if (msg.sender != _characterContract) revert NotCharacterContract();
         _;
     }
 
     function setCharacterContract(address characterContract) external onlyOwner {
-        require(characterContract != address(0), "Invalid character contract");
+        if (characterContract == address(0)) revert InvalidCharacterContract();
         _characterContract = characterContract;
+        emit CharacterContractUpdated(characterContract);
     }
 
     function createEquipment(
-        string memory name,
-        string memory description,
+        string calldata name,
+        string calldata description,
         uint8 strengthBonus,
         uint8 agilityBonus,
-        uint8 magicBonus
-    ) external onlyOwner returns (uint256) {
+        uint8 magicBonus,
+        Types.Alignment statAffinity,
+        uint256 amount
+    ) external onlyRole(MINTER_ROLE) returns (uint256) {
         uint256 tokenId = _nextTokenId++;
+        _exists[tokenId] = true;
 
-        equipmentStats[tokenId] = Types.EquipmentStats({
+        equipmentStats[tokenId] = PackedEquipmentStats({
             strengthBonus: strengthBonus,
             agilityBonus: agilityBonus,
             magicBonus: magicBonus,
             isActive: true,
+            statAffinity: statAffinity,
             name: name,
             description: description
         });
 
-        _exists[tokenId] = true;
         emit EquipmentCreated(tokenId, name, description);
         return tokenId;
     }
@@ -69,9 +91,18 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
         override
         returns (Types.EquipmentStats memory stats, bool exists)
     {
-        stats = equipmentStats[tokenId];
         exists = _exists[tokenId];
-        return (stats, exists);
+        if (!exists) return (stats, false);
+
+        PackedEquipmentStats storage packed = equipmentStats[tokenId];
+        stats.strengthBonus = packed.strengthBonus;
+        stats.agilityBonus = packed.agilityBonus;
+        stats.magicBonus = packed.magicBonus;
+        stats.isActive = packed.isActive;
+        stats.statAffinity = packed.statAffinity;
+        stats.name = packed.name;
+        stats.description = packed.description;
+        return (stats, true);
     }
 
     function getSpecialAbility(uint256 equipmentId, uint256 abilityIndex)
@@ -80,7 +111,7 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
         override
         returns (Types.SpecialAbility memory)
     {
-        require(abilityIndex < specialAbilities[equipmentId].length, "Invalid ability index");
+        if (abilityIndex >= specialAbilities[equipmentId].length) revert InvalidAbilityIndex();
         return specialAbilities[equipmentId][abilityIndex];
     }
 
@@ -93,8 +124,9 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
         override
         onlyCharacterContract
     {
-        require(abilityIndex < specialAbilities[equipmentId].length, "Invalid ability index");
-        abilityCooldowns[characterId][equipmentId][abilityIndex] = currentRound;
+        if (abilityIndex >= specialAbilities[equipmentId].length) revert InvalidAbilityIndex();
+        bytes32 cooldownKey = keccak256(abi.encodePacked(characterId, equipmentId, abilityIndex));
+        abilityCooldowns[cooldownKey] = uint40(currentRound);
     }
 
     function checkTriggerCondition(uint256 characterId, uint256 equipmentId, uint256 abilityIndex, uint256 currentRound)
@@ -103,9 +135,10 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
         override
         returns (bool)
     {
-        require(abilityIndex < specialAbilities[equipmentId].length, "Invalid ability index");
+        if (abilityIndex >= specialAbilities[equipmentId].length) revert InvalidAbilityIndex();
         Types.SpecialAbility memory ability = specialAbilities[equipmentId][abilityIndex];
-        uint256 lastUsed = abilityCooldowns[characterId][equipmentId][abilityIndex];
+        bytes32 cooldownKey = keccak256(abi.encodePacked(characterId, equipmentId, abilityIndex));
+        uint256 lastUsed = abilityCooldowns[cooldownKey];
         return currentRound >= lastUsed + ability.cooldown;
     }
 
@@ -120,8 +153,8 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
 
         // Calculate bonuses from weapon
         if (equipment.weaponId != 0) {
-            (Types.EquipmentStats memory weaponStats, bool weaponExists) = this.getEquipmentStats(equipment.weaponId);
-            if (weaponExists && weaponStats.isActive) {
+            PackedEquipmentStats storage weaponStats = equipmentStats[equipment.weaponId];
+            if (_exists[equipment.weaponId] && weaponStats.isActive) {
                 strengthBonus += weaponStats.strengthBonus;
                 agilityBonus += weaponStats.agilityBonus;
                 magicBonus += weaponStats.magicBonus;
@@ -130,8 +163,8 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
 
         // Calculate bonuses from armor
         if (equipment.armorId != 0) {
-            (Types.EquipmentStats memory armorStats, bool armorExists) = this.getEquipmentStats(equipment.armorId);
-            if (armorExists && armorStats.isActive) {
+            PackedEquipmentStats storage armorStats = equipmentStats[equipment.armorId];
+            if (_exists[equipment.armorId] && armorStats.isActive) {
                 strengthBonus += armorStats.strengthBonus;
                 agilityBonus += armorStats.agilityBonus;
                 magicBonus += armorStats.magicBonus;
@@ -141,38 +174,24 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
         return (strengthBonus, agilityBonus, magicBonus);
     }
 
-    /// @notice Deactivate an equipment type
-    /// @param equipmentId The ID of the equipment to deactivate
     function deactivateEquipment(uint256 equipmentId) external onlyOwner {
-        // Check if equipment exists
-        if (!_exists[equipmentId]) {
-            revert("Equipment does not exist");
-        }
+        if (!_exists[equipmentId]) revert EquipmentNotFound();
 
-        Types.EquipmentStats storage stats = equipmentStats[equipmentId];
-
-        // Check if equipment has any bonuses
+        PackedEquipmentStats storage stats = equipmentStats[equipmentId];
         if (stats.strengthBonus == 0 && stats.agilityBonus == 0 && stats.magicBonus == 0) {
-            revert("Equipment does not exist");
+            revert NoEquipmentBonuses();
         }
 
         stats.isActive = false;
         emit EquipmentDeactivated(equipmentId);
     }
 
-    /// @notice Activate an equipment type
-    /// @param equipmentId The ID of the equipment to activate
     function activateEquipment(uint256 equipmentId) external onlyOwner {
-        // Check if equipment exists
-        if (!_exists[equipmentId]) {
-            revert("Equipment does not exist");
-        }
+        if (!_exists[equipmentId]) revert EquipmentNotFound();
 
-        Types.EquipmentStats storage stats = equipmentStats[equipmentId];
-
-        // Check if equipment has any bonuses
+        PackedEquipmentStats storage stats = equipmentStats[equipmentId];
         if (stats.strengthBonus == 0 && stats.agilityBonus == 0 && stats.magicBonus == 0) {
-            revert("Equipment does not exist");
+            revert NoEquipmentBonuses();
         }
 
         stats.isActive = true;
@@ -180,17 +199,15 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
     }
 
     function setItemDrop(address itemDrop) external onlyOwner {
-        require(itemDrop != address(0), "Invalid item drop contract");
+        if (itemDrop == address(0)) revert InvalidItemDropContract();
         _itemDrop = itemDrop;
     }
 
     function mint(address to, uint256 id, uint256 amount, bytes memory data) external override onlyRole(MINTER_ROLE) {
         // Check if equipment is active
         if (_exists[id]) {
-            Types.EquipmentStats memory stats = equipmentStats[id];
-            if (!stats.isActive) {
-                revert("Equipment not active");
-            }
+            PackedEquipmentStats storage stats = equipmentStats[id];
+            if (!stats.isActive) revert EquipmentNotActive();
         }
 
         _mint(to, id, amount, data);
@@ -214,19 +231,23 @@ contract Equipment is ERC1155, Ownable, AccessControl, IEquipment {
         public
         view
         virtual
-        override(AccessControl, ERC1155)
+        override(AccessControl, ERC1155, IERC165)
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        return super.supportsInterface(interfaceId) || interfaceId == type(IEquipment).interfaceId;
     }
 
     function getEquipmentCount() external view returns (uint256) {
         return _nextTokenId - 1;
     }
 
-    function getEquipmentInfo(uint256 equipmentId) external view returns (string memory name, string memory description, bool isActive) {
-        require(_exists[equipmentId], "Equipment does not exist");
-        Types.EquipmentStats memory stats = equipmentStats[equipmentId];
+    function getEquipmentInfo(uint256 equipmentId)
+        external
+        view
+        returns (string memory name, string memory description, bool isActive)
+    {
+        if (!_exists[equipmentId]) revert EquipmentNotFound();
+        PackedEquipmentStats storage stats = equipmentStats[equipmentId];
         return (stats.name, stats.description, stats.isActive);
     }
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/IGameToken.sol";
 
 /// @title ArcaneStaking
@@ -38,7 +38,8 @@ contract ArcaneStaking is Ownable, ReentrancyGuard {
     event PoolAdded(uint256 indexed pid, address lpToken, uint256 allocPoint);
     event PoolUpdated(uint256 indexed pid, uint256 allocPoint);
 
-    constructor(IERC20 _rewardToken, uint256 _rewardPerBlock) Ownable(msg.sender) {
+    constructor(IERC20 _rewardToken, uint256 _rewardPerBlock) Ownable() {
+        _transferOwnership(msg.sender);
         rewardToken = _rewardToken;
         rewardPerBlock = _rewardPerBlock;
     }

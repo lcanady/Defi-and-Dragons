@@ -12,7 +12,8 @@ contract GameToken is IGameToken, ERC20, AccessControl, Ownable {
     mapping(address => bool) public marketplaceContracts;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    constructor() ERC20("Game Token", "GAME") Ownable(msg.sender) {
+    constructor() ERC20("Game Token", "GAME") Ownable() {
+        _transferOwnership(msg.sender);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
     }

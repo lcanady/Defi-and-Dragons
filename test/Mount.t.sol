@@ -22,19 +22,32 @@ contract MountTest is Test, IERC721Receiver {
     uint256 public mountId;
 
     function setUp() public {
-        // Deploy contracts
-        equipment = new Equipment();
+        // Deploy contracts in correct order
         random = new ProvableRandom();
+        equipment = new Equipment(address(this));
         character = new Character(address(equipment), address(random));
+        equipment.setCharacterContract(address(character));
         mountContract = new Mount(address(character));
+
+        // Reset random seed before creating test character
+        bytes32 context = bytes32(uint256(uint160(address(character))));
+        random.resetSeed(owner, context);
 
         // Create a character for testing
         vm.startPrank(owner);
-        characterId = character.mintCharacter(
-            owner,
-            Types.Alignment.STRENGTH
-        );
-        vm.stopPrank();
+        characterId = character.mintCharacter(owner, Types.Alignment.STRENGTH);
+
+        // Set character level to 10 for testing
+        Types.CharacterState memory initialState = Types.CharacterState({
+            health: 100,
+            consecutiveHits: 0,
+            damageReceived: 0,
+            roundsParticipated: 0,
+            alignment: Types.Alignment.STRENGTH,
+            level: 10, // High enough level for most mounts
+            class: 0
+        });
+        character.updateState(characterId, initialState);
 
         // Create test mount
         mountId = mountContract.createMount(
@@ -52,16 +65,7 @@ contract MountTest is Test, IERC721Receiver {
             5 // Level 5 required
         );
 
-        // Update character level
-        Types.CharacterState memory newState = Types.CharacterState({
-            health: 100,
-            consecutiveHits: 0,
-            damageReceived: 0,
-            roundsParticipated: 0,
-            alignment: Types.Alignment.STRENGTH,
-            level: 5
-        });
-        character.updateState(characterId, newState);
+        vm.stopPrank();
     }
 
     function testCreateMount() public {
@@ -158,7 +162,8 @@ contract MountTest is Test, IERC721Receiver {
             damageReceived: 0,
             roundsParticipated: 0,
             alignment: Types.Alignment.STRENGTH,
-            level: 1
+            level: 1,
+            class: 0
         });
         character.updateState(characterId, newState);
 
@@ -273,12 +278,7 @@ contract MountTest is Test, IERC721Receiver {
         vm.stopPrank();
     }
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 }

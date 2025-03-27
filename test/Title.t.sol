@@ -18,15 +18,12 @@ contract TitleTest is Test, IERC721Receiver {
     uint256 public characterId;
 
     function setUp() public {
-        equipment = new Equipment();
         random = new ProvableRandom();
+        equipment = new Equipment(address(random));
         character = new Character(address(equipment), address(random));
         titleContract = new Title(address(character));
 
-        characterId = character.mintCharacter(
-            owner,
-            Types.Alignment.STRENGTH
-        );
+        characterId = character.mintCharacter(owner, Types.Alignment.STRENGTH);
     }
 
     function testCreateTitle() public {
@@ -108,12 +105,7 @@ contract TitleTest is Test, IERC721Receiver {
         vm.stopPrank();
     }
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 }

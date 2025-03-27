@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/IEquipment.sol";
+import "./interfaces/Types.sol";
+import { NotCharacterContract, NotWeaponOwner, NotArmorOwner } from "./interfaces/Errors.sol";
 import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
-import { Types } from "./interfaces/Types.sol";
-import { IEquipment } from "./interfaces/IEquipment.sol";
-import { OnlyCharacterContract, NotWeaponOwner, NotArmorOwner } from "./interfaces/Errors.sol";
 
 contract CharacterWallet is Ownable, ERC1155Holder, ERC721Holder {
     IEquipment public immutable equipment;
@@ -18,14 +18,15 @@ contract CharacterWallet is Ownable, ERC1155Holder, ERC721Holder {
     event ItemEquipped(uint256 indexed characterId, uint256 weaponId, uint256 armorId);
     event ItemUnequipped(uint256 indexed characterId, bool weapon, bool armor);
 
-    constructor(address _equipment, uint256 _characterId, address _characterContract) Ownable(msg.sender) {
+    constructor(address _equipment, uint256 _characterId, address _characterContract) {
         equipment = IEquipment(_equipment);
         characterId = _characterId;
         characterContract = _characterContract;
+        _transferOwnership(msg.sender);
     }
 
     modifier onlyCharacterContract() {
-        if (msg.sender != characterContract) revert OnlyCharacterContract();
+        if (msg.sender != characterContract) revert NotCharacterContract();
         _;
     }
 

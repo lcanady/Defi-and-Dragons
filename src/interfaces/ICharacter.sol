@@ -10,7 +10,5 @@ interface ICharacter is IERC721 {
         view
         returns (Types.Stats memory stats, Types.EquipmentSlots memory equipment, Types.CharacterState memory state);
 
-    function mintCharacter(address to, Types.Alignment alignment)
-        external
-        returns (uint256);
+    function mintCharacter(address to, Types.Alignment alignment) external returns (uint256);
 }

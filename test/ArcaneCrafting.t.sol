@@ -9,6 +9,11 @@ import { ItemDrop } from "../src/ItemDrop.sol";
 import { ArcaneFactory } from "../src/amm/ArcaneFactory.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
+import { Character } from "../src/Character.sol";
+import { Types } from "../src/interfaces/Types.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { IERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 
 // Mock LP Token for testing
 contract MockLPToken is ERC20 {
@@ -24,19 +29,48 @@ contract MockResourceToken is ERC20 {
     }
 }
 
-contract ArcaneCraftingTest is Test {
-    using Strings for uint256;
-
+contract ArcaneCraftingTest is Test, IERC721Receiver, IERC1155Receiver {
     ArcaneCrafting public crafting;
     Equipment public equipment;
     ItemDrop public itemDrop;
     ArcaneFactory public factory;
     MockLPToken public lpToken;
     MockResourceToken public resourceToken;
+    ProvableRandom public random;
+    Character public character;
 
     address public owner;
     address public user;
     address public characterContract;
+    uint256 public characterId;
+
+    // Implement ERC721Receiver
+    function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+
+    // Implement ERC1155Receiver
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata)
+        external
+        pure
+        override
+        returns (bytes4)
+    {
+        return IERC1155Receiver.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+        external
+        pure
+        override
+        returns (bytes4)
+    {
+        return IERC1155Receiver.onERC1155BatchReceived.selector;
+    }
+
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        return interfaceId == type(IERC1155Receiver).interfaceId || interfaceId == type(IERC721Receiver).interfaceId;
+    }
 
     function setUp() public {
         owner = address(this);
@@ -47,10 +81,13 @@ contract ArcaneCraftingTest is Test {
         lpToken = new MockLPToken();
         resourceToken = new MockResourceToken();
 
-        // Deploy contracts
+        // Deploy contracts in correct order
+        random = new ProvableRandom();
+        equipment = new Equipment(address(this));
+        character = new Character(address(equipment), address(random));
+        equipment.setCharacterContract(address(character));
         factory = new ArcaneFactory();
-        equipment = new Equipment();
-        itemDrop = new ItemDrop();
+        itemDrop = new ItemDrop(address(random));
 
         // Initialize ItemDrop
         itemDrop.initialize(address(equipment));
@@ -62,14 +99,22 @@ contract ArcaneCraftingTest is Test {
         equipment.setCharacterContract(address(crafting));
         equipment.grantRole(equipment.MINTER_ROLE(), address(crafting));
 
+        // Reset random seed before creating test character
+        bytes32 context = bytes32(uint256(uint160(address(character))));
+        random.resetSeed(owner, context);
+        random.initializeSeed(owner, context);
+        characterId = character.mintCharacter(owner, Types.Alignment.STRENGTH);
+
         // Create test equipment
         for (uint256 i = 1; i <= 5; i++) {
             equipment.createEquipment(
-                string(abi.encodePacked("Test Item ", i.toString())),
-                string(abi.encodePacked("A test item #", i.toString())),
+                "Test Weapon",
+                "A test weapon",
                 5, // strength bonus
                 0, // agility bonus
-                0 // magic bonus
+                0, // magic bonus
+                Types.Alignment.STRENGTH, // stat affinity
+                1 // amount
             );
         }
 

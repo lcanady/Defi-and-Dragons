@@ -3,22 +3,28 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/ICharacter.sol";
+import "../interfaces/IGameToken.sol";
 import "../interfaces/Types.sol";
 import "../interfaces/IAttributeProvider.sol";
+import "../interfaces/Errors.sol";
 import "../Character.sol";
 
 /// @title Ability
 /// @notice Manages hero abilities that affect game mechanics
-contract Ability is ERC721, Ownable, IAttributeProvider {
+contract Ability is ERC721, Ownable, ReentrancyGuard, IAttributeProvider {
+    using Math for uint256;
+
     struct AbilityData {
         string name;
-        uint256 ammFeeReductionBps; // AMM fee reduction in basis points
-        uint256 craftingSuccessBoostBps; // Crafting success rate boost in basis points
-        uint256 vrfCostReductionBps; // VRF cost reduction in basis points
-        uint256 cooldownReduction; // Cooldown reduction in seconds
+        uint256 ammFeeReductionBps;
+        uint256 craftingSuccessBoostBps;
+        uint256 vrfCostReductionBps;
+        uint256 cooldownReduction;
         bool active;
-        uint256 requiredLevel; // Minimum level required to use ability
+        uint256 requiredLevel;
     }
 
     struct HeroAbility {
@@ -47,9 +53,9 @@ contract Ability is ERC721, Ownable, IAttributeProvider {
     error InsufficientLevel();
     error AbilityCooldown();
     error NoActiveAbility();
-    error NotCharacterOwner();
 
-    constructor(address _characterContract) ERC721("Hero Ability", "ABILITY") Ownable(msg.sender) {
+    constructor(address _characterContract) ERC721("Hero Ability", "ABILITY") Ownable() {
+        _transferOwnership(msg.sender);
         characterContract = ICharacter(_characterContract);
     }
 

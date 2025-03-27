@@ -2,9 +2,10 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/ICharacter.sol";
 import "./interfaces/Types.sol";
+import "./interfaces/Errors.sol";
 
 /// @title Party
 /// @notice Manages character parties for group activities and quests
@@ -13,55 +14,68 @@ contract Party is Ownable, ReentrancyGuard {
 
     struct PartyInfo {
         string name;
-        uint256[] memberIds;
+        uint256[] memberIds; // Can't reduce size as these are NFT IDs
         address owner;
         bool active;
-        uint256 maxSize;
+        uint8 maxSize; // Reduced from uint256, max is 10
+        uint8 memberCount; // Track count separately for gas optimization
     }
 
     // Party ID => Party Info
     mapping(bytes32 => PartyInfo) public parties;
-    
+
     // Character ID => Active Party ID
     mapping(uint256 => bytes32) public characterParties;
+
+    // Party ID => Member existence mapping for O(1) lookups
+    mapping(bytes32 => mapping(uint256 => bool)) private partyMembership;
 
     event PartyCreated(bytes32 indexed partyId, string name, address indexed owner);
     event MemberAdded(bytes32 indexed partyId, uint256 indexed characterId);
     event MemberRemoved(bytes32 indexed partyId, uint256 indexed characterId);
     event PartyDisbanded(bytes32 indexed partyId);
 
-    constructor(address _character) Ownable(msg.sender) {
+    constructor(address _character) Ownable() {
         character = ICharacter(_character);
+        _transferOwnership(msg.sender);
     }
 
     /// @notice Create a new party
     function createParty(
         string calldata name,
         uint256[] calldata initialMembers,
-        uint256 maxSize
+        uint8 maxSize // Changed to uint8
     ) external nonReentrant returns (bytes32) {
-        require(maxSize >= initialMembers.length && maxSize <= 10, "Invalid party size");
-        require(initialMembers.length > 0, "Empty party");
+        uint256 memberCount = initialMembers.length;
+        if (maxSize < memberCount || maxSize > 10) revert InvalidPartySize();
+        if (memberCount == 0) revert EmptyParty();
 
         // Verify ownership of all initial members
-        for (uint256 i = 0; i < initialMembers.length; i++) {
-            require(character.ownerOf(initialMembers[i]) == msg.sender, "Not character owner");
-            require(characterParties[initialMembers[i]] == bytes32(0), "Character in party");
+        unchecked {
+            // Safe because we already checked length > 0 and array access is bounds checked
+            for (uint256 i; i < memberCount; ++i) {
+                if (character.ownerOf(initialMembers[i]) != msg.sender) revert NotCharacterOwner();
+                if (characterParties[initialMembers[i]] != bytes32(0)) revert CharacterInParty();
+            }
         }
 
         bytes32 partyId = keccak256(abi.encodePacked(name, msg.sender, block.timestamp));
-        
-        parties[partyId] = PartyInfo({
-            name: name,
-            memberIds: initialMembers,
-            owner: msg.sender,
-            active: true,
-            maxSize: maxSize
-        });
+
+        // Store party info
+        parties[partyId].name = name;
+        parties[partyId].memberIds = initialMembers;
+        parties[partyId].owner = msg.sender;
+        parties[partyId].active = true;
+        parties[partyId].maxSize = maxSize;
+        parties[partyId].memberCount = uint8(memberCount);
 
         // Register characters to party
-        for (uint256 i = 0; i < initialMembers.length; i++) {
-            characterParties[initialMembers[i]] = partyId;
+        unchecked {
+            for (uint256 i; i < memberCount; ++i) {
+                uint256 memberId = initialMembers[i];
+                characterParties[memberId] = partyId;
+                partyMembership[partyId][memberId] = true;
+            }
         }
 
         emit PartyCreated(partyId, name, msg.sender);
@@ -71,14 +85,18 @@ contract Party is Ownable, ReentrancyGuard {
     /// @notice Add a member to a party
     function addMember(bytes32 partyId, uint256 characterId) external nonReentrant {
         PartyInfo storage party = parties[partyId];
-        require(party.active, "Party not active");
-        require(party.owner == msg.sender, "Not party owner");
-        require(party.memberIds.length < party.maxSize, "Party full");
-        require(character.ownerOf(characterId) == msg.sender, "Not character owner");
-        require(characterParties[characterId] == bytes32(0), "Character in party");
+        if (!party.active) revert PartyNotActive();
+        if (party.owner != msg.sender) revert NotPartyOwner();
+        if (party.memberCount >= party.maxSize) revert PartyFull();
+        if (character.ownerOf(characterId) != msg.sender) revert NotCharacterOwner();
+        if (characterParties[characterId] != bytes32(0)) revert CharacterInParty();
 
         party.memberIds.push(characterId);
         characterParties[characterId] = partyId;
+        partyMembership[partyId][characterId] = true;
+        unchecked {
+            ++party.memberCount;
+        }
 
         emit MemberAdded(partyId, characterId);
     }
@@ -86,29 +104,31 @@ contract Party is Ownable, ReentrancyGuard {
     /// @notice Remove a member from a party
     function removeMember(bytes32 partyId, uint256 characterId) external nonReentrant {
         PartyInfo storage party = parties[partyId];
-        require(party.active, "Party not active");
-        require(party.owner == msg.sender || character.ownerOf(characterId) == msg.sender, "Not authorized");
+        if (!party.active) revert PartyNotActive();
+        if (party.owner != msg.sender && character.ownerOf(characterId) != msg.sender) revert NotAuthorized();
+        if (!partyMembership[partyId][characterId]) revert CharacterNotInParty();
 
-        // Find and remove member
-        bool found = false;
-        uint256[] memory newMembers = new uint256[](party.memberIds.length - 1);
-        uint256 j = 0;
-        
-        for (uint256 i = 0; i < party.memberIds.length; i++) {
-            if (party.memberIds[i] != characterId) {
-                if (j < newMembers.length) {
-                    newMembers[j] = party.memberIds[i];
-                    j++;
+        // Remove member efficiently using swap and pop
+        uint256[] storage members = party.memberIds;
+        uint256 len = members.length;
+
+        unchecked {
+            for (uint256 i; i < len; ++i) {
+                if (members[i] == characterId) {
+                    if (i != len - 1) {
+                        members[i] = members[len - 1];
+                    }
+                    members.pop();
+                    break;
                 }
-            } else {
-                found = true;
             }
         }
 
-        require(found, "Character not in party");
-
-        party.memberIds = newMembers;
         characterParties[characterId] = bytes32(0);
+        partyMembership[partyId][characterId] = false;
+        unchecked {
+            --party.memberCount;
+        }
 
         emit MemberRemoved(partyId, characterId);
     }
@@ -116,15 +136,24 @@ contract Party is Ownable, ReentrancyGuard {
     /// @notice Disband a party
     function disbandParty(bytes32 partyId) external nonReentrant {
         PartyInfo storage party = parties[partyId];
-        require(party.active, "Party not active");
-        require(party.owner == msg.sender, "Not party owner");
+        if (!party.active) revert PartyNotActive();
+        if (party.owner != msg.sender) revert NotPartyOwner();
 
         // Clear character party mappings
-        for (uint256 i = 0; i < party.memberIds.length; i++) {
-            characterParties[party.memberIds[i]] = bytes32(0);
+        uint256[] memory members = party.memberIds;
+        uint256 len = members.length;
+        unchecked {
+            for (uint256 i; i < len; ++i) {
+                uint256 memberId = members[i];
+                characterParties[memberId] = bytes32(0);
+                partyMembership[partyId][memberId] = false;
+            }
         }
 
         party.active = false;
+        party.memberCount = 0;
+        delete party.memberIds;
+
         emit PartyDisbanded(partyId);
     }
 
@@ -143,21 +172,18 @@ contract Party is Ownable, ReentrancyGuard {
         return characterParties[characterId];
     }
 
-    /// @notice Get party info
-    function getPartyInfo(bytes32 partyId) external view returns (
-        string memory name,
-        uint256[] memory memberIds,
-        address owner,
-        bool active,
-        uint256 maxSize
-    ) {
-        PartyInfo storage party = parties[partyId];
-        return (
-            party.name,
-            party.memberIds,
-            party.owner,
-            party.active,
-            party.maxSize
-        );
+    /// @notice Check if a character is in a specific party
+    function isInSpecificParty(bytes32 partyId, uint256 characterId) external view returns (bool) {
+        return partyMembership[partyId][characterId];
     }
-} 
+
+    /// @notice Get party info
+    function getPartyInfo(bytes32 partyId)
+        external
+        view
+        returns (string memory name, uint256[] memory memberIds, address owner, bool active, uint8 maxSize)
+    {
+        PartyInfo storage party = parties[partyId];
+        return (party.name, party.memberIds, party.owner, party.active, party.maxSize);
+    }
+}

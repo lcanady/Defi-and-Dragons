@@ -7,6 +7,9 @@ via_ir = true
 optimizer = true
 optimizer_runs = 200
 gas_reports = ["*"]
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"
+]
 
 # Package information
 name = "defi-and-dragons"

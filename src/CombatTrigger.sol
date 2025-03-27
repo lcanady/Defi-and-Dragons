@@ -2,50 +2,54 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/ICharacter.sol";
-import "./CombatQuest.sol";
-import "./ProtocolQuest.sol";
-import "./TimeQuest.sol";
+import "./interfaces/ICombatQuest.sol";
+import "./interfaces/IProtocolQuest.sol";
+import "./interfaces/ITimeQuest.sol";
+import "./interfaces/IGameToken.sol";
+import "./interfaces/ProvableRandom.sol";
 
 /// @title CombatTrigger
 /// @notice Manages combat encounters triggered by protocol interactions and quest completions
 contract CombatTrigger is Ownable, ReentrancyGuard {
-    
-    CombatQuest public immutable combatQuest;
-    ProtocolQuest public immutable protocolQuest;
-    TimeQuest public immutable timeQuest;
+    ICombatQuest public immutable combatQuest;
+    IProtocolQuest public immutable protocolQuest;
+    ITimeQuest public immutable timeQuest;
     ICharacter public immutable character;
+    IGameToken public immutable gameToken;
+    ProvableRandom public immutable randomness;
 
     struct CombatTriggerRule {
-        TriggerType triggerType;      // Type of trigger
-        bytes32 sourceId;             // ID of source quest/protocol
-        uint256 threshold;            // Required value to trigger
-        bytes32 monsterId;           // Monster/boss to spawn
-        uint256 spawnDuration;       // How long monster remains
-        uint256 cooldown;            // Cooldown between spawns
-        bool isActive;               // Whether rule is active
+        TriggerType triggerType; // Type of trigger
+        bytes32 sourceId; // ID of source quest/protocol
+        uint256 threshold; // Required value to trigger
+        bytes32 monsterId; // Monster/boss to spawn
+        uint256 spawnDuration; // How long monster remains
+        uint256 cooldown; // Cooldown between spawns
+        bool isActive; // Whether rule is active
     }
 
     struct TriggerState {
-        uint256 lastTrigger;         // Last time triggered
-        uint256 progress;            // Current progress
-        bool isActive;               // Whether currently triggered
+        uint256 lastTrigger; // Last time triggered
+        uint256 progress; // Current progress
+        bool isActive; // Whether currently triggered
     }
 
     enum TriggerType {
-        PROTOCOL_VOLUME,             // Based on trading volume
-        PROTOCOL_INTERACTIONS,       // Based on number of interactions
-        TIME_STREAK,                // Based on daily quest streaks
-        QUEST_COMPLETION            // Based on completing specific quests
+        PROTOCOL_VOLUME, // Based on trading volume
+        PROTOCOL_INTERACTIONS, // Based on number of interactions
+        TIME_STREAK, // Based on daily quest streaks
+        QUEST_COMPLETION // Based on completing specific quests
+
     }
 
     // Rule ID => Rule details
     mapping(bytes32 => CombatTriggerRule) public triggerRules;
-    
+
     // Rule ID => Character ID => Trigger state
     mapping(bytes32 => mapping(uint256 => TriggerState)) public triggerStates;
-    
+
     // Protocol => Whether it can trigger combat
     mapping(address => bool) public approvedTriggers;
 
@@ -58,12 +62,17 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
         address _combatQuest,
         address _protocolQuest,
         address _timeQuest,
-        address _character
-    ) Ownable(msg.sender) {
-        combatQuest = CombatQuest(_combatQuest);
-        protocolQuest = ProtocolQuest(_protocolQuest);
-        timeQuest = TimeQuest(_timeQuest);
+        address _character,
+        address _gameToken,
+        address _randomness
+    ) Ownable() {
+        _transferOwnership(msg.sender);
+        combatQuest = ICombatQuest(_combatQuest);
+        protocolQuest = IProtocolQuest(_protocolQuest);
+        timeQuest = ITimeQuest(_timeQuest);
         character = ICharacter(_character);
+        gameToken = IGameToken(_gameToken);
+        randomness = ProvableRandom(_randomness);
     }
 
     /// @notice Create a new combat trigger rule
@@ -75,13 +84,7 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
         uint256 spawnDuration,
         uint256 cooldown
     ) external onlyOwner returns (bytes32) {
-        bytes32 ruleId = keccak256(abi.encodePacked(
-            triggerType,
-            sourceId,
-            threshold,
-            monsterId,
-            block.timestamp
-        ));
+        bytes32 ruleId = keccak256(abi.encodePacked(triggerType, sourceId, threshold, monsterId, block.timestamp));
 
         triggerRules[ruleId] = CombatTriggerRule({
             triggerType: triggerType,
@@ -98,21 +101,14 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
     }
 
     /// @notice Update progress for a trigger rule
-    function updateProgress(
-        bytes32 ruleId,
-        uint256 characterId,
-        uint256 amount
-    ) public {
+    function updateProgress(bytes32 ruleId, uint256 characterId, uint256 amount) public {
         require(approvedTriggers[msg.sender], "Not approved trigger");
-        
+
         CombatTriggerRule storage rule = triggerRules[ruleId];
         require(rule.isActive, "Rule not active");
 
         TriggerState storage state = triggerStates[ruleId][characterId];
-        require(
-            block.timestamp >= state.lastTrigger + rule.cooldown,
-            "Still in cooldown"
-        );
+        require(block.timestamp >= state.lastTrigger + rule.cooldown, "Still in cooldown");
 
         // Update progress
         state.progress += amount;
@@ -130,10 +126,7 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
         TriggerState storage state = triggerStates[ruleId][characterId];
 
         // Start boss fight or spawn monster
-        bytes32 encounterId = combatQuest.startBossFight(
-            rule.monsterId,
-            rule.spawnDuration
-        );
+        bytes32 encounterId = combatQuest.startBossFight(rule.monsterId, rule.spawnDuration);
 
         // Update state
         state.lastTrigger = block.timestamp;
@@ -144,15 +137,11 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
     }
 
     /// @notice Record protocol interaction progress
-    function recordProtocolProgress(
-        address protocol,
-        uint256 characterId,
-        uint256 volume
-    ) external {
+    function recordProtocolProgress(address protocol, uint256 characterId, uint256 volume) external {
         require(msg.sender == address(protocolQuest), "Only protocol quest");
-        
+
         bytes32[] memory activeRules = getActiveRulesByType(TriggerType.PROTOCOL_VOLUME);
-        
+
         for (uint256 i = 0; i < activeRules.length; i++) {
             CombatTriggerRule storage rule = triggerRules[activeRules[i]];
             if (bytes32(uint256(uint160(protocol))) == rule.sourceId) {
@@ -162,15 +151,11 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
     }
 
     /// @notice Record time quest streak progress
-    function recordTimeProgress(
-        bytes32 questId,
-        uint256 characterId,
-        uint256 streak
-    ) external {
+    function recordTimeProgress(bytes32 questId, uint256 characterId, uint256 streak) external {
         require(msg.sender == address(timeQuest), "Only time quest");
-        
+
         bytes32[] memory activeRules = getActiveRulesByType(TriggerType.TIME_STREAK);
-        
+
         for (uint256 i = 0; i < activeRules.length; i++) {
             CombatTriggerRule storage rule = triggerRules[activeRules[i]];
             if (questId == rule.sourceId) {
@@ -180,18 +165,11 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
     }
 
     /// @notice Record quest completion
-    function recordQuestCompletion(
-        bytes32 questId,
-        uint256 characterId
-    ) external {
-        require(
-            msg.sender == address(protocolQuest) ||
-            msg.sender == address(timeQuest),
-            "Invalid quest contract"
-        );
-        
+    function recordQuestCompletion(bytes32 questId, uint256 characterId) external {
+        require(msg.sender == address(protocolQuest) || msg.sender == address(timeQuest), "Invalid quest contract");
+
         bytes32[] memory activeRules = getActiveRulesByType(TriggerType.QUEST_COMPLETION);
-        
+
         for (uint256 i = 0; i < activeRules.length; i++) {
             CombatTriggerRule storage rule = triggerRules[activeRules[i]];
             if (questId == rule.sourceId) {
@@ -201,14 +179,10 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
     }
 
     /// @notice Get active rules by trigger type
-    function getActiveRulesByType(TriggerType triggerType)
-        public
-        view
-        returns (bytes32[] memory)
-    {
+    function getActiveRulesByType(TriggerType triggerType) public view returns (bytes32[] memory) {
         uint256 count = 0;
         bytes32[] memory allRules = new bytes32[](100); // Arbitrary limit
-        
+
         // First pass: count active rules
         for (uint256 i = 0; i < allRules.length; i++) {
             bytes32 ruleId = bytes32(i);
@@ -218,13 +192,13 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
                 count++;
             }
         }
-        
+
         // Second pass: create correctly sized array
         bytes32[] memory activeRules = new bytes32[](count);
         for (uint256 i = 0; i < count; i++) {
             activeRules[i] = allRules[i];
         }
-        
+
         return activeRules;
     }
 
@@ -237,21 +211,11 @@ contract CombatTrigger is Ownable, ReentrancyGuard {
     function getTriggerProgress(bytes32 ruleId, uint256 characterId)
         external
         view
-        returns (
-            uint256 progress,
-            uint256 threshold,
-            uint256 cooldownEnds,
-            bool isActive
-        )
+        returns (uint256 progress, uint256 threshold, uint256 cooldownEnds, bool isActive)
     {
         CombatTriggerRule storage rule = triggerRules[ruleId];
         TriggerState storage state = triggerStates[ruleId][characterId];
-        
-        return (
-            state.progress,
-            rule.threshold,
-            state.lastTrigger + rule.cooldown,
-            state.isActive
-        );
+
+        return (state.progress, rule.threshold, state.lastTrigger + rule.cooldown, state.isActive);
     }
-} 
+}

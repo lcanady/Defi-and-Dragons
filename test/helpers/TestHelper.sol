@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import { Equipment } from "../../src/Equipment.sol";
+import { Types } from "../../src/interfaces/Types.sol";
 
 contract TestHelper is Test {
     function setupEquipment(Equipment equipment, address characterContract) public {
@@ -13,7 +14,9 @@ contract TestHelper is Test {
             "A test weapon",
             5, // strength bonus
             0, // agility bonus
-            0 // magic bonus
+            0, // magic bonus
+            Types.Alignment.STRENGTH, // stat affinity
+            1 // amount
         );
 
         equipment.createEquipment(
@@ -21,7 +24,9 @@ contract TestHelper is Test {
             "A test armor",
             0, // strength bonus
             5, // agility bonus
-            0 // magic bonus
+            0, // magic bonus
+            Types.Alignment.AGILITY, // stat affinity
+            1 // amount
         );
     }
 

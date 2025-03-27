@@ -32,14 +32,15 @@ contract AbilityIntegrationTest is Test, IERC721Receiver {
         owner = address(this);
         user = makeAddr("user");
 
-        // Deploy core contracts
-        equipment = new Equipment();
+        // Deploy core contracts in correct order
         random = new ProvableRandom();
+        equipment = new Equipment(address(this));
         character = new Character(address(equipment), address(random));
+        equipment.setCharacterContract(address(character));
 
         // Deploy contracts
         factory = new ArcaneFactory();
-        itemDrop = new ItemDrop();
+        itemDrop = new ItemDrop(address(random));
         ability = new Ability(address(character));
         crafting = new ArcaneCrafting(address(factory), address(equipment), address(itemDrop));
 
@@ -49,22 +50,28 @@ contract AbilityIntegrationTest is Test, IERC721Receiver {
         // Deploy integration contract
         integration = new AbilityIntegration(address(ability), address(crafting), address(factory), address(itemDrop));
 
-        // Create test character
-        characterId = character.mintCharacter(
-            user,
-            Types.Alignment.STRENGTH
-        );
+        // Create test character for user
+        vm.startPrank(user);
+        bytes32 context = bytes32(uint256(uint160(address(character))));
+        random.resetSeed(user, context);
+        random.initializeSeed(user, context);
+        characterId = character.mintCharacter(user, Types.Alignment.STRENGTH);
+        vm.stopPrank();
 
-        // Set character level to 5
+        // Set character level to 5 (required for ability)
         vm.startPrank(owner);
-        character.updateState(characterId, Types.CharacterState({
-            health: 100,
-            consecutiveHits: 0,
-            damageReceived: 0,
-            roundsParticipated: 0,
-            alignment: Types.Alignment.STRENGTH,
-            level: 5
-        }));
+        character.updateState(
+            characterId,
+            Types.CharacterState({
+                health: 100,
+                consecutiveHits: 0,
+                damageReceived: 0,
+                roundsParticipated: 0,
+                alignment: Types.Alignment.STRENGTH,
+                level: 5, // Updated to meet ability requirement
+                class: 0
+            })
+        );
         vm.stopPrank();
 
         // Create test ability
@@ -186,12 +193,7 @@ contract AbilityIntegrationTest is Test, IERC721Receiver {
         );
     }
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 }

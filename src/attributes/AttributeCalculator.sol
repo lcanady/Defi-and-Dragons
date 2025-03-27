@@ -40,7 +40,7 @@ contract AttributeCalculator is Ownable {
     error InvalidStatType();
     error InvalidProvider();
 
-    constructor(address _characterContract, address _equipmentContract) Ownable(msg.sender) {
+    constructor(address _characterContract, address _equipmentContract) Ownable() {
         characterContract = Character(_characterContract);
         equipmentContract = Equipment(_equipmentContract);
     }

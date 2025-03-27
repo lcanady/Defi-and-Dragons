@@ -2,22 +2,28 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
+import "../interfaces/ICharacter.sol";
 import "../interfaces/Types.sol";
+import "../interfaces/Errors.sol";
 import "../interfaces/IAttributeProvider.sol";
 import "../Character.sol";
 
 /// @title Pet
 /// @notice NFT contract for pets that provide boosts to characters
-contract Pet is ERC721, Ownable, IAttributeProvider {
+contract Pet is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, IAttributeProvider {
+    using Math for uint256;
+
     // Pet rarity tiers
     enum Rarity {
-        COMMON, // 10% boost
-        UNCOMMON, // 20% boost
-        RARE, // 30% boost
-        EPIC, // 40% boost
-        LEGENDARY // 50% boost
-
+        Common,
+        Uncommon,
+        Rare,
+        Epic,
+        Legendary
     }
 
     struct PetData {
@@ -56,19 +62,19 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
     error PetNotActive();
     error InsufficientLevel();
     error AlreadyHasPet();
-    error NotCharacterOwner();
     error BoostTooHigh();
     error NoPetAssigned();
 
-    constructor(address _characterContract) ERC721("Game Pet", "PET") Ownable(msg.sender) {
+    constructor(address _characterContract) ERC721("Game Pet", "PET") Ownable() {
+        _transferOwnership(msg.sender);
         characterContract = Character(_characterContract);
         _nextPetTypeId = 1_000_000;
         _nextTokenId = 1;
     }
 
     /// @notice Check if a pet exists
-    function _exists(uint256 petId) internal view returns (bool) {
-        return _existsMap[petId];
+    function _exists(uint256 petId) internal view virtual override returns (bool) {
+        return super._exists(petId);
     }
 
     /// @notice Create a new pet type
@@ -103,7 +109,7 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
     /// @notice Mint a pet to a character
     function mintPet(uint256 characterId, uint256 petTypeId) external {
         // Check if pet type exists and is active
-        if (!_exists(petTypeId)) revert PetNotActive(); // Pet type doesn't exist
+        if (!_existsMap[petTypeId]) revert PetNotActive(); // Pet type doesn't exist
 
         PetData memory petData = pets[petTypeId];
         if (!petData.isActive) revert PetNotActive();
@@ -161,7 +167,7 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
         if (tokenId == 0) return false;
 
         uint256 petTypeId = _mintedPetToType[tokenId];
-        if (!_exists(petTypeId)) return false;
+        if (!_existsMap[petTypeId]) return false;
 
         address wallet = address(characterContract.characterWallets(characterId));
         return pets[petTypeId].isActive && ownerOf(tokenId) == wallet;
@@ -173,7 +179,7 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
         if (tokenId == 0) return (0, 0);
 
         uint256 petTypeId = _mintedPetToType[tokenId];
-        if (!_exists(petTypeId) || !pets[petTypeId].isActive) return (0, 0);
+        if (!_existsMap[petTypeId] || !pets[petTypeId].isActive) return (0, 0);
 
         PetData memory pet = pets[petTypeId];
         return (pet.yieldBoostBps, pet.dropRateBoostBps);
@@ -207,5 +213,29 @@ contract Pet is ERC721, Ownable, IAttributeProvider {
     /// @inheritdoc IAttributeProvider
     function isActive(uint256 characterId) external view override returns (bool) {
         return hasActivePet(characterId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721Enumerable, ERC721URIStorage)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
+        return super.tokenURI(tokenId);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize)
+        internal
+        override(ERC721, ERC721Enumerable)
+    {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+    }
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
     }
 }

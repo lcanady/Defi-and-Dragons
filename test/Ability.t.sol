@@ -21,29 +21,38 @@ contract AbilityTest is Test, IERC721Receiver {
     uint256 public characterId;
 
     function setUp() public {
-        // Deploy contracts
-        equipment = new Equipment();
+        // Deploy contracts in correct order
         random = new ProvableRandom();
+        equipment = new Equipment(address(this));
         character = new Character(address(equipment), address(random));
+        equipment.setCharacterContract(address(character));
         abilityContract = new Ability(address(character));
 
-        // Create a character for testing
-        vm.startPrank(owner);
-        characterId = character.mintCharacter(
-            owner,
-            Types.Alignment.STRENGTH
-        );
+        // Reset random seed before creating test character
+        bytes32 context = bytes32(uint256(uint160(address(character))));
+        random.resetSeed(owner, context);
+        random.initializeSeed(owner, context);
+
+        // Create test character for user
+        vm.startPrank(user1);
+        random.resetSeed(user1, context);
+        random.initializeSeed(user1, context);
+        characterId = character.mintCharacter(user1, Types.Alignment.STRENGTH);
+        vm.stopPrank();
 
         // Set character level to 5
-        character.updateState(characterId, Types.CharacterState({
-            health: 100,
-            consecutiveHits: 0,
-            damageReceived: 0,
-            roundsParticipated: 0,
-            alignment: Types.Alignment.STRENGTH,
-            level: 5
-        }));
-        vm.stopPrank();
+        character.updateState(
+            characterId,
+            Types.CharacterState({
+                health: 100,
+                consecutiveHits: 0,
+                damageReceived: 0,
+                roundsParticipated: 0,
+                alignment: Types.Alignment.STRENGTH,
+                level: 5,
+                class: 0
+            })
+        );
     }
 
     function testCreateAbility() public {
@@ -85,7 +94,7 @@ contract AbilityTest is Test, IERC721Receiver {
             5 // Level 5 required
         );
 
-        vm.startPrank(owner);
+        vm.startPrank(user1);
         abilityContract.learnAbility(characterId, abilityId);
         vm.stopPrank();
 
@@ -102,7 +111,7 @@ contract AbilityTest is Test, IERC721Receiver {
             5 // Level 5 required
         );
 
-        vm.startPrank(owner);
+        vm.startPrank(user1);
         abilityContract.learnAbility(characterId, abilityId);
         abilityContract.useAbility(characterId);
         vm.stopPrank();
@@ -135,21 +144,21 @@ contract AbilityTest is Test, IERC721Receiver {
             5 // Level 5 required
         );
 
-        vm.startPrank(owner);
+        // Transfer ownership of ability contract to the user (character owner)
+        abilityContract.transferOwnership(user1);
+
+        vm.startPrank(user1);
         abilityContract.learnAbility(characterId, abilityId);
         abilityContract.useAbility(characterId);
+        
+        // Since the ability is active, deactivate it
         abilityContract.deactivateAbility(characterId);
         vm.stopPrank();
 
         assertFalse(abilityContract.hasActiveAbility(characterId), "Ability should be inactive");
     }
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 }

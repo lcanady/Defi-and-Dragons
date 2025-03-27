@@ -39,7 +39,8 @@ contract Title is ERC721, Ownable {
     event TitleActivated(uint256 indexed titleId);
     event TitleDeactivated(uint256 indexed titleId);
 
-    constructor(address _characterContract) ERC721("Character Title", "TITLE") Ownable(msg.sender) {
+    constructor(address _characterContract) ERC721("Character Title", "TITLE") Ownable() {
+        _transferOwnership(msg.sender);
         characterContract = ICharacter(_characterContract);
     }
 

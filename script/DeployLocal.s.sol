@@ -1,92 +1,58 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
-import "../src/Character.sol";
-import "../src/Equipment.sol";
-import "../src/GameToken.sol";
-import "../src/Quest.sol";
-import "../src/ItemDrop.sol";
-import "../src/Marketplace.sol";
-import "../src/ProvableRandom.sol";
-import "../src/CombatQuest.sol";
-import "../src/CombatAbilities.sol";
+import { Script } from "forge-std/Script.sol";
+import { ProvableRandom } from "../src/ProvableRandom.sol";
+import { Character } from "../src/Character.sol";
+import { Equipment } from "../src/Equipment.sol";
+import { ItemDrop } from "../src/ItemDrop.sol";
+import { CombatDamageCalculator } from "../src/CombatDamageCalculator.sol";
+import { Party } from "../src/Party.sol";
+import { GameToken } from "../src/GameToken.sol";
+import { Quest } from "../src/Quest.sol";
+import { Marketplace } from "../src/Marketplace.sol";
+import { CombatQuest } from "../src/CombatQuest.sol";
+import { CombatAbilities } from "../src/CombatAbilities.sol";
 
-contract DeployLocal is Script {
+contract DeployLocalScript is Script {
     function run() public {
-        uint256 deployerPrivateKey = vm.envUint("ANVIL_PRIVATE_KEY");
-        address deployer = vm.addr(deployerPrivateKey);
-
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy core contracts
-        Equipment equipment = new Equipment();
-        ProvableRandom random = new ProvableRandom();
-        Character character = new Character(address(equipment), address(random));
+        // Deploy core contracts first that don't have dependencies
         GameToken gameToken = new GameToken();
+        ProvableRandom random = new ProvableRandom();
 
-        // Deploy ItemDrop
-        ItemDrop itemDrop = new ItemDrop();
-        itemDrop.initialize(address(equipment));
+        // Deploy Equipment with a temporary address for character
+        Equipment equipment = new Equipment(address(0));
 
-        // Deploy CombatAbilities
-        CombatAbilities abilities = new CombatAbilities(deployer);
-        abilities.transferOwnership(deployer);
+        // Now deploy Character with the real equipment address
+        Character character = new Character(address(equipment), address(random));
 
-        // Deploy CombatQuest with ItemDrop
+        // Update Equipment with the real character address
+        equipment.setCharacterContract(address(character));
+
+        // Deploy remaining contracts that depend on the core contracts
+        Party party = new Party(address(character));
+        ItemDrop itemDrop = new ItemDrop(address(random));
+
+        // Deploy quest contracts
         CombatQuest combatQuest = new CombatQuest(
+            msg.sender,
             address(character),
             address(gameToken),
-            address(abilities),
+            address(0), // abilities
             address(itemDrop),
-            deployer // Set deployer as initial owner
+            address(0) // damageCalculator
         );
+        CombatDamageCalculator calculator = new CombatDamageCalculator(address(character), address(equipment));
 
-        // Deploy and initialize Quest
-        Quest quest = new Quest(address(character));
-        quest.initialize(address(gameToken));
+        // Deploy marketplace
+        Marketplace marketplace = new Marketplace(address(gameToken), address(equipment), msg.sender);
 
-        // Deploy Marketplace
-        Marketplace marketplace = new Marketplace(
-            address(gameToken),
-            address(equipment),
-            deployer // Use deployer as fee collector for local testing
-        );
-
-        // Setup permissions
-        bytes32 MINTER_ROLE = gameToken.MINTER_ROLE();
-        gameToken.grantRole(MINTER_ROLE, address(quest));
-        gameToken.grantRole(MINTER_ROLE, address(combatQuest));
-
-        bytes32 EQUIPMENT_MINTER_ROLE = equipment.MINTER_ROLE();
-        equipment.grantRole(EQUIPMENT_MINTER_ROLE, address(itemDrop));
-
-        marketplace.updateListingFee(100);
+        // Set up initial marketplace parameters
+        marketplace.updateListingFee(100); // 1% fee
 
         vm.stopBroadcast();
-
-        // Save deployment info to file
-        string memory deployInfo = string(
-            abi.encodePacked(
-                "EQUIPMENT_ADDRESS=",
-                vm.toString(address(equipment)),
-                "\n",
-                "CHARACTER_ADDRESS=",
-                vm.toString(address(character)),
-                "\n",
-                "GAME_TOKEN_ADDRESS=",
-                vm.toString(address(gameToken)),
-                "\n",
-                "QUEST_ADDRESS=",
-                vm.toString(address(quest)),
-                "\n",
-                "ITEM_DROP_ADDRESS=",
-                vm.toString(address(itemDrop)),
-                "\n",
-                "MARKETPLACE_ADDRESS=",
-                vm.toString(address(marketplace))
-            )
-        );
-        vm.writeFile(".env.anvil", deployInfo);
     }
 }

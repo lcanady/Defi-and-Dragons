@@ -29,7 +29,7 @@ contract MarketplaceTest is Test {
 
         // Deploy contracts
         gameToken = new GameToken();
-        equipment = new MockEquipment();
+        equipment = new MockEquipment(address(0));
         marketplace = new Marketplace(address(gameToken), address(equipment), feeCollector);
 
         // Setup initial balances

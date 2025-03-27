@@ -13,4 +13,4 @@ interface IPriceOracle {
     /// @param token The token address to check
     /// @return The timestamp of the last price update
     function getLastUpdate(address token) external view returns (uint256);
-} 
+}

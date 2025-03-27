@@ -7,6 +7,7 @@ import "../src/GameToken.sol";
 import "../src/Quest.sol";
 import "../src/interfaces/Types.sol";
 import "../src/ProvableRandom.sol";
+import "../src/Equipment.sol";
 
 contract QuestTest is Test {
     Character public character;
@@ -17,15 +18,24 @@ contract QuestTest is Test {
     uint256 public questId;
     ProvableRandom public random;
 
+    // Define quest objectives
+    Quest.QuestObjective[] objectives;
+
     function setUp() public {
+        // Initialize objectives array with a single objective
+        objectives.push(Quest.QuestObjective({ targetValue: 10, currentValue: 0, objectiveType: keccak256("KILLS") }));
+
         user = address(0x1);
         vm.startPrank(address(this)); // Start as test contract (owner)
 
-        // Deploy contracts
+        // Deploy contracts in correct order
         random = new ProvableRandom();
-        character = new Character(address(0), address(random)); // Mock equipment address
+        Equipment equipment = new Equipment(address(this));
+        character = new Character(address(equipment), address(random));
+        equipment.setCharacterContract(address(character));
+
         gameToken = new GameToken();
-        quest = new Quest(address(character));
+        quest = new Quest(address(character), address(0)); // Mock party contract
         quest.initialize(address(gameToken));
         gameToken.setQuestContract(address(quest), true);
         gameToken.grantRole(gameToken.MINTER_ROLE(), address(quest));
@@ -33,8 +43,9 @@ contract QuestTest is Test {
         vm.stopPrank();
         vm.startPrank(user);
 
-        // Setup initial state
-        Types.Stats memory stats = Types.Stats({ strength: 40, agility: 30, magic: 30 });
+        // Reset random seed for user
+        bytes32 context = bytes32(uint256(uint160(address(quest))));
+        random.resetSeed(user, context);
 
         // Create a character
         characterId = character.mintCharacter(user, Types.Alignment.STRENGTH);
@@ -48,14 +59,21 @@ contract QuestTest is Test {
             10, // requiredAgility
             10, // requiredMagic
             100 * 10 ** 18, // rewardAmount
-            1 hours // cooldown
+            uint32(1 hours), // cooldown
+            false, // supportsParty
+            0, // maxPartySize
+            0, // partyBonusPercent
+            false, // isRaid
+            0, // maxParties
+            Quest.QuestType.COMBAT, // questType
+            objectives // objectives array
         );
         vm.stopPrank();
         vm.startPrank(user); // Back to user context
     }
 
     function testFailUseBeforeInitialize() public {
-        Quest newQuest = new Quest(address(character));
+        Quest newQuest = new Quest(address(character), address(0)); // Mock party contract
 
         // Create a quest (this should work)
         uint256 newQuestId = newQuest.createQuest(
@@ -64,7 +82,14 @@ contract QuestTest is Test {
             10, // requiredAgility
             10, // requiredMagic
             100 * 10 ** 18, // rewardAmount
-            1 hours // cooldown
+            uint32(1 hours), // cooldown
+            false, // supportsParty
+            0, // maxPartySize
+            0, // partyBonusPercent
+            false, // isRaid
+            0, // maxParties
+            Quest.QuestType.COMBAT, // questType
+            objectives // objectives array
         );
 
         // Try to complete the quest (this should fail because gameToken is not initialized)
@@ -72,7 +97,7 @@ contract QuestTest is Test {
     }
 
     function testStartQuest() public {
-        quest.startQuest(characterId, questId);
+        quest.startQuest(characterId, questId, bytes32(0));
         assertTrue(quest.activeQuests(questId));
     }
 
@@ -80,18 +105,25 @@ contract QuestTest is Test {
         // Create a quest with high requirements
         uint256 hardQuestId = quest.createQuest(
             1, // requiredLevel
-            50, // requiredStrength (higher than character's)
+            50, // requiredStrength
             50, // requiredAgility
             50, // requiredMagic
             100 * 10 ** 18, // rewardAmount
-            1 hours // cooldown
+            uint32(1 hours), // cooldown
+            false, // supportsParty
+            0, // maxPartySize
+            0, // partyBonusPercent
+            false, // isRaid
+            0, // maxParties
+            Quest.QuestType.COMBAT, // questType
+            objectives // objectives array
         );
 
-        quest.startQuest(characterId, hardQuestId);
+        quest.startQuest(characterId, hardQuestId, bytes32(0));
     }
 
     function testCompleteQuest() public {
-        quest.startQuest(characterId, questId);
+        quest.startQuest(characterId, questId, bytes32(0));
         quest.completeQuest(characterId, questId);
 
         assertFalse(quest.activeQuests(questId));
@@ -103,8 +135,8 @@ contract QuestTest is Test {
     }
 
     function testFailStartQuestOnCooldown() public {
-        quest.startQuest(characterId, questId);
+        quest.startQuest(characterId, questId, bytes32(0));
         quest.completeQuest(characterId, questId);
-        quest.startQuest(characterId, questId); // Should fail due to cooldown
+        quest.startQuest(characterId, questId, bytes32(0)); // Should fail due to cooldown
     }
 }

@@ -33,6 +33,7 @@ interface Types {
         uint256 roundsParticipated;
         Alignment alignment;
         uint256 level;
+        uint256 class;
     }
 
     struct EquipmentSlots {
@@ -45,6 +46,7 @@ interface Types {
         uint8 agilityBonus;
         uint8 magicBonus;
         bool isActive;
+        Alignment statAffinity;
         string name;
         string description;
     }

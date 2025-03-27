@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {Types} from "./interfaces/Types.sol";
-import {Character} from "./Character.sol";
-import {Equipment} from "./Equipment.sol";
-import {GameToken} from "./GameToken.sol";
-import {ItemDrop} from "./ItemDrop.sol";
-import {Marketplace} from "./Marketplace.sol";
-import {Quest} from "./Quest.sol";
-import {CharacterWallet} from "./CharacterWallet.sol";
-import {Pet} from "./pets/Pet.sol";
-import {Mount} from "./pets/Mount.sol";
-import {Title} from "./titles/Title.sol";
-import {AttributeCalculator} from "./attributes/AttributeCalculator.sol";
-import {ArcaneStaking} from "./amm/ArcaneStaking.sol";
-import {ArcaneCrafting} from "./amm/ArcaneCrafting.sol";
-import {ArcaneFactory} from "./amm/ArcaneFactory.sol";
-import {ArcanePair} from "./amm/ArcanePair.sol";
-import {ArcaneQuestIntegration} from "./amm/ArcaneQuestIntegration.sol";
-import {ArcaneRouter} from "./amm/ArcaneRouter.sol";
+import { Types } from "./interfaces/Types.sol";
+import { Character } from "./Character.sol";
+import { Equipment } from "./Equipment.sol";
+import { GameToken } from "./GameToken.sol";
+import { ItemDrop } from "./ItemDrop.sol";
+import { Marketplace } from "./Marketplace.sol";
+import { Quest } from "./Quest.sol";
+import { CharacterWallet } from "./CharacterWallet.sol";
+import { Pet } from "./pets/Pet.sol";
+import { Mount } from "./pets/Mount.sol";
+import { Title } from "./titles/Title.sol";
+import { AttributeCalculator } from "./attributes/AttributeCalculator.sol";
+import { ArcaneStaking } from "./amm/ArcaneStaking.sol";
+import { ArcaneCrafting } from "./amm/ArcaneCrafting.sol";
+import { ArcaneFactory } from "./amm/ArcaneFactory.sol";
+import { ArcanePair } from "./amm/ArcanePair.sol";
+import { ArcaneQuestIntegration } from "./amm/ArcaneQuestIntegration.sol";
+import { ArcaneRouter } from "./amm/ArcaneRouter.sol";
 
 /**
  * @title GameFacade
@@ -109,9 +109,7 @@ contract GameFacade {
      * @param alignment Character alignment
      * @return characterId The ID of the newly created character
      */
-    function createCharacter(
-        Types.Alignment alignment
-    ) external returns (uint256 characterId) {
+    function createCharacter(Types.Alignment alignment) external returns (uint256 characterId) {
         characterId = character.mintCharacter(msg.sender, alignment);
         emit CharacterCreated(msg.sender, characterId);
         return characterId;
@@ -127,7 +125,11 @@ contract GameFacade {
     function getCharacterDetails(uint256 characterId)
         external
         view
-        returns (Types.Stats memory stats, Types.EquipmentSlots memory equipmentSlots, Types.CharacterState memory state)
+        returns (
+            Types.Stats memory stats,
+            Types.EquipmentSlots memory equipmentSlots,
+            Types.CharacterState memory state
+        )
     {
         return character.getCharacter(characterId);
     }
@@ -174,7 +176,11 @@ contract GameFacade {
      * @param equipmentId The ID of the equipment
      * @return abilities Array of special abilities
      */
-    function getEquipmentAbilities(uint256 equipmentId) external view returns (Types.SpecialAbility[] memory abilities) {
+    function getEquipmentAbilities(uint256 equipmentId)
+        external
+        view
+        returns (Types.SpecialAbility[] memory abilities)
+    {
         return equipment.getSpecialAbilities(equipmentId);
     }
 
@@ -185,8 +191,7 @@ contract GameFacade {
      * @param questId The ID of the quest to start
      */
     function startQuest(uint256 characterId, uint256 questId) external {
-        quest.startQuest(characterId, questId);
-        emit QuestStarted(msg.sender, questId);
+        quest.startQuest(characterId, questId, bytes32(0)); // Pass empty party ID
     }
 
     /**
@@ -196,7 +201,12 @@ contract GameFacade {
      */
     function completeQuest(uint256 characterId, uint256 questId) external {
         quest.completeQuest(characterId, questId);
-        emit QuestCompleted(msg.sender, questId, 0); // Reward amount will be emitted by the Quest contract
+
+        uint256 dropRateBonus = calculateDropRateBonus(msg.sender);
+        if (dropRateBonus > 0) {
+            uint256 requestId = itemDrop.requestRandomDrop(msg.sender, uint32(dropRateBonus));
+            emit QuestCompleted(msg.sender, questId, requestId);
+        }
     }
 
     // Item Drop System
@@ -206,7 +216,7 @@ contract GameFacade {
      * @return requestId The ID of the drop request
      */
     function requestRandomDrop(uint256 dropRateBonus) external returns (uint256 requestId) {
-        requestId = itemDrop.requestRandomDrop(msg.sender, dropRateBonus);
+        requestId = itemDrop.requestRandomDrop(msg.sender, uint32(dropRateBonus));
         emit ItemDropped(msg.sender, requestId, dropRateBonus);
         return requestId;
     }
@@ -345,7 +355,10 @@ contract GameFacade {
      * @return totalStats The total calculated stats
      * @return bonusMultiplier The total bonus multiplier
      */
-    function calculateTotalAttributes(uint256 characterId) external returns (Types.Stats memory totalStats, uint256 bonusMultiplier) {
+    function calculateTotalAttributes(uint256 characterId)
+        external
+        returns (Types.Stats memory totalStats, uint256 bonusMultiplier)
+    {
         return attributeCalculator.calculateTotalAttributes(characterId);
     }
 
@@ -441,4 +454,9 @@ contract GameFacade {
     ) external {
         arcaneRouter.removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to);
     }
-} 
+
+    function calculateDropRateBonus(address player) internal view returns (uint256) {
+        // For now, return a fixed bonus. This can be expanded based on player stats, achievements, etc.
+        return 100; // 1% bonus
+    }
+}

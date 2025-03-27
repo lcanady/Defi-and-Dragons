@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "./interfaces/IGameToken.sol";
@@ -35,10 +35,11 @@ contract Marketplace is Ownable, ReentrancyGuard, ERC1155Holder {
     event ListingFeeUpdated(uint256 newFee);
     event FeeCollectorUpdated(address newCollector);
 
-    constructor(address _gameToken, address _equipment, address _feeCollector) Ownable(msg.sender) {
+    constructor(address _gameToken, address _equipment, address _feeCollector) Ownable() {
         gameToken = IGameToken(_gameToken);
         equipment = IERC1155(_equipment);
         feeCollector = _feeCollector;
+        _transferOwnership(msg.sender);
     }
 
     function listItem(uint256 equipmentId, uint256 price, uint256 amount) external nonReentrant {

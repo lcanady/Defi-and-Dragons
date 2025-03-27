@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ArcaneFactory } from "./ArcaneFactory.sol";
 import { ArcanePair } from "./ArcanePair.sol";
@@ -33,7 +33,8 @@ contract ArcaneQuestIntegration is Ownable, ReentrancyGuard {
     event LPDropRateBonusSet(address indexed lpPair, uint256 bonus);
     event EnhancedRewardClaimed(address indexed user, uint256 indexed questId, uint256 bonus);
 
-    constructor(address _factory, address _questContract, address _itemDrop) Ownable(msg.sender) {
+    constructor(address _factory, address _questContract, address _itemDrop) Ownable() {
+        _transferOwnership(msg.sender);
         factory = ArcaneFactory(_factory);
         questContract = Quest(_questContract);
         itemDrop = ItemDrop(_itemDrop);
@@ -111,7 +112,7 @@ contract ArcaneQuestIntegration is Ownable, ReentrancyGuard {
     /// @param _questId Quest ID
     function startQuest(uint256 _characterId, uint256 _questId) external nonReentrant {
         if (!meetsLPRequirement(msg.sender, 1)) revert InsufficientLPTokens();
-        questContract.startQuest(_characterId, _questId);
+        questContract.startQuest(_characterId, _questId, bytes32(0));
     }
 
     /// @notice Complete a quest with enhanced rewards for LP providers
@@ -122,7 +123,7 @@ contract ArcaneQuestIntegration is Ownable, ReentrancyGuard {
 
         uint256 dropBonus = calculateDropRateBonus(msg.sender);
         if (dropBonus > 0) {
-            itemDrop.requestRandomDrop(msg.sender, dropBonus);
+            itemDrop.requestRandomDrop(msg.sender, uint32(dropBonus));
             emit EnhancedRewardClaimed(msg.sender, _questId, dropBonus);
         }
     }

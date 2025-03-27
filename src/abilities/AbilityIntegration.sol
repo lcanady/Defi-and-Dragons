@@ -29,9 +29,8 @@ contract AbilityIntegration is Ownable {
         uint256 vrfReduction
     );
 
-    constructor(address _abilityContract, address _craftingContract, address _factory, address _itemDrop)
-        Ownable(msg.sender)
-    {
+    constructor(address _abilityContract, address _craftingContract, address _factory, address _itemDrop) Ownable() {
+        _transferOwnership(msg.sender);
         abilityContract = Ability(_abilityContract);
         craftingContract = ArcaneCrafting(_craftingContract);
         factory = ArcaneFactory(_factory);
