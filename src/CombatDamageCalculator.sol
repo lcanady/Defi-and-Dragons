@@ -24,9 +24,8 @@ contract CombatDamageCalculator is Ownable {
 
     /// @notice Calculate damage based on character stats and weapon affinity
     /// @param characterId The ID of the attacking character
-    /// @param targetId The ID of the target character
     /// @return The calculated damage amount
-    function calculateDamage(uint256 characterId, uint256 targetId) external view returns (uint256) {
+    function calculateDamage(uint256 characterId, uint256 /* targetId */) external view returns (uint256) {
         // Get character stats and equipment
         (Types.Stats memory stats, Types.EquipmentSlots memory equipment,) = characterContract.getCharacter(characterId);
 
