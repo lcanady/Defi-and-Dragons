@@ -92,8 +92,9 @@ After deploying to a public testnet:
 
 ```bash
 forge verify-contract <CONTRACT_ADDRESS> src/Character.sol:Character \
-    --chain-id <CHAIN_ID> \
-    --constructor-args $(cast abi-encode "constructor(address,address)" <EQUIPMENT_ADDRESS> <RANDOM_ADDRESS>)
+    --chain <CHAIN_ID> \
+    --constructor-args $(cast abi-encode "constructor(address,address)" <EQUIPMENT_ADDRESS> <RANDOM_ADDRESS>) \
+    --etherscan-api-key <ETHERSCAN_API_KEY>
 ```
 
 ## Development Commands 🛠️

@@ -18,6 +18,7 @@ Example of proper character creation:
 try {
     const tx = await character.mintCharacter(
         yourAddress,
+        stats, // Your hero's base attributes
         Types.Alignment.STRENGTH
     );
     await tx.wait();

@@ -29,56 +29,52 @@ await arcaneStaking.deposit(poolId, amount);
 
 // Withdraw your empowered tokens
 await arcaneStaking.withdraw(poolId, amount);
+
+// Harvest your magical rewards
+await arcaneStaking.deposit(poolId, 0);
 ```
 
-## ⚗️ The Mystic Forge
+## ⚒️ The Mystic Forge
 In this sacred place, you may transmute LP tokens into powerful artifacts:
 
 ```solidity
+// Prepare the materials
+const lpToken = new ethers.Contract(recipe.requiredTokens[0], IERC20ABI, signer);
+await lpToken.approve(arcaneCrafting.address, amount);
+
 // Forge a mystical item
 await arcaneCrafting.craftItem(recipeId);
 ```
 
-## 🎯 Protocol Quests
-Undertake dangerous missions in the realm of DeFi:
+## 🌟 Our Mystical Pools
+These are the sacred circles currently available for staking:
 
-```solidity
-struct ProtocolQuestTemplate {
-    address protocol;           // The mystical contract
-    uint256 minInteractions;   // Required ritual count
-    uint256 minVolume;         // Required magical power
-    uint256 rewardAmount;      // Quest bounty
-    uint256 bonusRewardCap;    // Maximum bonus treasure
-    uint256 duration;          // Time to complete
-    bool active;               // Quest availability
-}
+| Pool ID | LP Token Pair | GOLD Reward Rate | Minimum Staking Period |
+|---------|--------------|-----------------|------------------------|
+| 0 | WETH-GOLD | 1 GOLD/block | 1 day |
+| 1 | USDC-GOLD | 0.5 GOLD/block | 12 hours |
+| 2 | WBTC-GOLD | 0.75 GOLD/block | 2 days |
+
+## 🔍 Understanding the Arcane Risks
+All magic comes with potential dangers:
+
+### Impermanent Loss
+```
+When the elemental balance of tokens shifts after you've provided them to a pool,
+you may recover less value than if you had simply held them in your sacred vault.
 ```
 
-### Embarking on Protocol Adventures
-```solidity
-// Begin your protocol quest
-await arcaneQuestIntegration.startQuest(characterId, questId);
+### Other Mystical Dangers
+- **Contract Vulnerabilities**: Despite protection spells (audits), risks remain
+- **Price Fluctuations**: The value of magical tokens may shift with the winds
+- **Gas Costs**: Summoning transactions requires energy that varies in cost
 
-// Claim your rewards
-await arcaneQuestIntegration.completeQuest(characterId, questId);
-```
+## 🧙‍♂️ Future Enchantments
+While our current magical system is focused on LP staking and crafting, our council of elders is working on new spells:
 
-## 🏪 The Mystical Marketplace
-Trade your magical artifacts with fellow adventurers:
-
-```solidity
-struct Listing {
-    address seller;      // The merchant
-    uint256 price;       // Required gold
-    uint256 amount;      // Quantity available
-    bool active;         // Shop status
-}
-
-// Set up your merchant stall
-await marketplace.listItem(equipmentId, price, amount);
-
-// Purchase magical items
-await marketplace.purchaseItem(equipmentId, listingId, amount);
-```
+- Protocol quests for brave adventurers
+- Character abilities powered by your DeFi actions
+- Adventure portals to other chains
+- Advanced crafting formulas
 
 May your investments be blessed by the gods of fortune, brave adventurer! 💰✨ 

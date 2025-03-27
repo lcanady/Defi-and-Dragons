@@ -15,7 +15,7 @@ The `ProvableRandom` system is a crucial component that brings uncertainty and f
 Each adventurer (address) is assigned a unique seed that evolves over time:
 
 ```typescript
-bytes32 private seeds;  // Mapping of address => seed
+mapping(address => bytes32) private seeds;  // Mapping of address => seed
 ```
 
 ### Initializing the Seed

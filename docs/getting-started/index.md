@@ -18,6 +18,7 @@ Choose your path wisely with one of three sacred alignments:
 // Forge your champion's essence
 const characterId = await character.mintCharacter(
     yourAddress,
+    stats, // Your hero's base attributes
     Types.Alignment.STRENGTH  // Choose your path: STRENGTH, AGILITY, or MAGIC
 );
 
