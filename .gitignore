@@ -1,6 +1,12 @@
 # Dependencies
-/lib/
+lib/
 out/
 cache/
 lib/forge-std
 lib/openzeppelin-contracts
+
+# Environment variables
+.env
+
+# Build artifacts
+build/
