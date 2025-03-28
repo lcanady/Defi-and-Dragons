@@ -1,334 +1,400 @@
 # Combat System API Reference 🗡️
 
-Welcome to the combat system documentation! This guide covers the core combat mechanics, abilities, and quest systems.
+Welcome to the combat system documentation! This guide covers the core combat mechanics, damage calculation, abilities, and related quest systems.
 
-## Core Combat Actions 🎯
+## Overview
 
-### CombatActions Contract
+The combat system is composed of several key contracts:
 
-The `CombatActions` contract manages combat moves and special effects in battle.
+-   **`CombatDamageCalculator.sol`**: Calculates base damage based on character stats, equipment, and affinities.
+-   **`CombatActions.sol`**: Manages specific "combat moves" triggered by DeFi actions, tracks battle state, combos, critical hits, and life steal.
+-   **`CombatAbilities.sol`**: Defines elemental abilities, manages their usage, status effects (buffs/debuffs), and elemental interactions/combos.
+-   **`CombatQuest.sol`**: Manages combat-specific quests like monster hunts and boss fights, utilizing the other combat contracts. (See `quest.md` for full Quest API details).
 
-#### Action Types
+---
+
+## Combat Damage Calculator (`CombatDamageCalculator.sol`) 🧮
+
+Handles the fundamental damage calculation based on character stats and equipped weapon affinity.
+
+### Contract Setup
+
+**Constructor:**
 ```solidity
-enum ActionType {
-    NONE,              // Default state
-    TRADE,             // Trading actions
-    YIELD_FARM,        // Yield farming actions
-    GOVERNANCE_VOTE,   // Governance voting
-    BRIDGE_TOKENS,     // Token bridging
-    FLASH_LOAN,        // Flash loan actions
-    NFT_TRADE,        // NFT trading
-    CREATE_PROPOSAL,   // Proposal creation
-    DELEGATE          // Power delegation
-}
+constructor(address _characterContract, address _equipmentContract) Ownable()
+```
+Initializes with the `Character` and `Equipment` contract addresses.
+
+**Dependencies:**
+- `ICharacter`: To fetch character stats and equipment slots.
+- `IEquipment`: To fetch weapon stats and stat affinity.
+
+### Core Function
+
+**calculateDamage:**
+```solidity
+function calculateDamage(uint256 characterId, uint256 targetId) external view returns (uint256)
+```
+Calculates the potential damage an attacker (`characterId`) can deal.
+- Starts with `BASE_DAMAGE`.
+- Fetches character stats and equipped weapon (`equipment.weaponId`) via `ICharacter`.
+- If a weapon is equipped, fetches `EquipmentStats` via `IEquipment`.
+- Adds the character's relevant stat (Strength, Agility, or Magic based on `weaponStats.statAffinity`) to `BASE_DAMAGE`.
+- Adds weapon stat bonuses (`strengthBonus`, etc.).
+- Applies `AFFINITY_BONUS_MULTIPLIER` if the character's alignment matches the weapon's `statAffinity`.
+- **Note:** The `targetId` parameter is currently unused in this specific calculation but might be relevant for future defense/resistance calculations.
+
+**Constants:**
+- `BASE_DAMAGE`: 10
+- `AFFINITY_BONUS_MULTIPLIER`: 150 (1.5x)
+- `SCALING_DENOMINATOR`: 100
+
+---
+
+## Combat Actions (`CombatActions.sol`) ⚔️
+
+Manages specific "combat moves" triggered by DeFi actions, tracks battle state, combos, critical hits, and life steal.
+
+### Contract Setup
+
+**Constructor:**
+```solidity
+constructor(address _character, address _gameToken, address _randomness, address _damageCalculator) Ownable()
+```
+Initializes with `Character`, `GameToken`, `ProvableRandom`, and `CombatDamageCalculator` contract addresses.
+
+**Dependencies:**
+- `ICharacter`: For character ownership and stats (potentially).
+- `IGameToken`: For potential reward/cost mechanics (not directly used in snippets).
+- `ProvableRandom`: For randomness in critical hits, combos, etc.
+- `CombatDamageCalculator`: Referenced, but damage calculation seems handled internally in `calculateDamage`.
+
+**Roles & Access:**
+- `Ownable`: Most creation/configuration functions are `onlyOwner`.
+- `setProtocolApproval`: `onlyOwner` function to approve external contracts (e.g., DeFi protocols) to call `triggerMove`.
+- `triggerMove`: Requires `msg.sender` to be an `approvedProtocol`.
+- `startBattle`: Requires `msg.sender` to be the `character.ownerOf(characterId)`.
+
+### Enums
+
+**ActionType:** (Triggers for moves)
+```solidity
+enum ActionType { NONE, TRADE, YIELD_FARM, GOVERNANCE_VOTE, BRIDGE_TOKENS, FLASH_LOAN, NFT_TRADE, CREATE_PROPOSAL, DELEGATE }
 ```
 
-#### Special Effects
+**SpecialEffect:** (Effects applied by moves)
 ```solidity
-enum SpecialEffect {
-    NONE,           // No special effect
-    CHAIN_ATTACK,   // Chain multiple attacks
-    CRITICAL_HIT,   // Increased damage chance
-    LIFE_STEAL,     // Drain health
-    ARMOR_BREAK,    // Reduce defense
-    COMBO_ENABLER,  // Enable combo moves
-    MULTI_STRIKE,   // Multiple hits
-    DOT            // Damage over time
-}
+enum SpecialEffect { NONE, CHAIN_ATTACK, CRITICAL_HIT, LIFE_STEAL, ARMOR_BREAK, COMBO_ENABLER, MULTI_STRIKE, DOT }
 ```
 
-#### Combat Move Structure
+### Structs
+
+**CombatMove:** (Packed for gas efficiency)
 ```solidity
 struct CombatMove {
-    string name;           // Move name
-    uint256 baseDamage;   // Base damage amount
-    uint256 scalingFactor;// Damage scaling
-    uint256 cooldown;     // Time between uses
-    ActionType[] triggers;// Triggering actions
-    uint256 minValue;     // Minimum value required
-    SpecialEffect effect; // Special effect type
-    uint256 effectValue;  // Effect magnitude
-    bool active;          // Whether move is active
+    string name;
+    uint32 baseDamage;      // Base damage
+    uint32 scalingFactor;   // Scaling modifier (applied in internal calculateDamage)
+    uint32 cooldown;        // Seconds between uses
+    uint32 minValue;        // Minimum action value to trigger
+    uint32 effectValue;     // Magnitude of special effect
+    ActionType[] triggers;  // DeFi actions that can trigger this
+    SpecialEffect effect;   // Special effect applied
+    bool active;            // Is the move usable?
+    uint16 criticalChance; // Specific crit chance added by this move
 }
 ```
 
+**PackedBattleState:** (Tracks ongoing battles per character)
+```solidity
+struct PackedBattleState {
+    bytes32 targetId;       // ID of the opponent
+    uint128 remainingHealth; // Target's current health
+    uint40 battleStartTime;  // Timestamp battle began
+    uint8 comboCount;       // Current combo chain length
+    bool isActive;          // Is a battle currently happening?
+}
+```
+
+**EffectState:** (Tracks temporary applied effects)
+```solidity
+struct EffectState {
+    uint40 endTime;         // Timestamp effect expires
+    uint32 value;           // Magnitude of the effect
+}
+```
+
+### State Variables & Mappings
+
+- `moves`: `bytes32 => CombatMove`
+- `battles`: `uint256 (characterId) => PackedBattleState`
+- `approvedProtocols`: `address => bool`
+- `comboPaths`: `bytes32 (moveId) => mapping(bytes32 (moveId) => bool)` (Valid sequences)
+- `lastMove`: `uint256 (characterId) => bytes32 (moveId)`
+- `criticalChances`: `uint256 (characterId) => uint16` (Base crit chance, 0-10000)
+- `lifeStealAmounts`: `uint256 (characterId) => uint16` (Base life steal %, 0-10000)
+- `moveCooldowns`: `uint256 (characterId) => mapping(bytes32 (moveId) => uint40 (timestamp))`
+- `effectStates`: `uint256 (characterId) => mapping(SpecialEffect => EffectState)` (Private)
+
+### Events
+
+- `MoveCreated(bytes32 indexed moveId, string name, ActionType[] triggers)`
+- `MoveTriggered(bytes32 indexed moveId, uint256 indexed characterId, uint256 damage)`
+- `BattleStarted(uint256 indexed characterId, bytes32 indexed targetId, uint256 health)`
+- `BattleEnded(uint256 indexed characterId, bytes32 indexed targetId, bool victory)`
+- `DamageDealt(uint256 indexed characterId, bytes32 indexed targetId, uint256 damage)`
+- `ComboTriggered(uint256 indexed characterId, uint8 comboCount, uint256 bonusDamage)`
+- `SpecialEffectTriggered(uint256 indexed characterId, SpecialEffect effect, uint32 value)`
+- `CriticalHit(uint256 indexed characterId, uint256 originalDamage, uint256 criticalDamage)`
+
 ### Core Functions
 
-#### createMove
+**setProtocolApproval:**
+```solidity
+function setProtocolApproval(address protocol, bool approved) external onlyOwner
+```
+Approves/revokes an external contract's ability to call `triggerMove`.
+
+**createMove:**
 ```solidity
 function createMove(
-    string memory name,
-    uint256 baseDamage,
-    uint256 scalingFactor,
-    uint256 cooldown,
-    ActionType[] memory triggers,
-    uint256 minValue,
+    string calldata name,
+    uint32 baseDamage,
+    uint32 scalingFactor,
+    uint32 cooldown,
+    ActionType[] calldata triggers,
+    uint32 minValue,
     SpecialEffect effect,
-    uint256 effectValue
-) external onlyOwner returns (bytes32)
+    uint32 effectValue,
+    uint16 criticalChance // Added chance for this specific move
+) external onlyOwner returns (bytes32 moveId)
 ```
-Creates a new combat move.
+Creates a new combat move definition. `moveId` is generated via keccak256.
 
-**Parameters:**
-- `name`: Name of the move
-- `baseDamage`: Base damage amount
-- `scalingFactor`: Damage scaling factor
-- `cooldown`: Cooldown period in seconds
-- `triggers`: Array of actions that trigger this move
-- `minValue`: Minimum value required to use
-- `effect`: Special effect type
-- `effectValue`: Effect magnitude
-
-**Returns:**
-- `bytes32`: Unique ID of the created move
-
-#### triggerMove
+**createComboPath:**
 ```solidity
-function triggerMove(
-    uint256 characterId,
-    ActionType actionType,
-    uint256 actionValue
-) external returns (uint256)
+function createComboPath(bytes32 firstMoveId, bytes32 secondMoveId) external onlyOwner
 ```
-Triggers a combat move based on an action.
+Defines a valid sequence: `secondMoveId` can follow `firstMoveId` for combo bonuses.
 
-**Parameters:**
-- `characterId`: ID of the character
-- `actionType`: Type of action performed
-- `actionValue`: Value of the action
-
-**Returns:**
-- `uint256`: Damage dealt
-
-## Combat Abilities 🔮
-
-### CombatAbilities Contract
-
-Manages elemental abilities and status effects.
-
-#### Element Types
+**setCriticalChance:**
 ```solidity
-enum Element {
-    NEUTRAL,
-    FIRE,
-    WATER,
-    EARTH,
-    AIR,
-    LIGHT,
-    DARK
+function setCriticalChance(uint256 characterId, uint16 chance) external onlyOwner
+```
+Sets the base critical hit chance (0-5000, i.e., 0-50%) for a character.
+
+**setLifeSteal:**
+```solidity
+function setLifeSteal(uint256 characterId, uint16 amount) external onlyOwner
+```
+Sets the base life steal percentage (0-2000, i.e., 0-20%) for a character.
+
+**startBattle:**
+```solidity
+function startBattle(uint256 characterId, bytes32 targetId, uint128 targetHealth) external
+```
+Initiates a battle for `characterId` against `targetId`. Requires caller to be character owner. Sets `battles[characterId]`.
+
+**triggerMove:**
+```solidity
+function triggerMove(uint256 characterId, ActionType actionType, uint256 actionValue) external returns (uint256 damage)
+```
+Called by an `approvedProtocol` when a character performs a relevant DeFi action.
+- Finds the best eligible move (`findBestMove`) based on `actionType` and `actionValue`.
+- Checks move cooldown (`moveCooldowns`).
+- Calculates damage using internal `calculateDamage` (applies move scaling, crit chance, effects).
+- Applies potential base critical hit (using `criticalChances` and `ProvableRandom`).
+- Applies potential base life steal (using `lifeStealAmounts`).
+- Updates `battles[characterId].remainingHealth`.
+- Applies the move's `SpecialEffect` (e.g., DOT, Armor Break via `effectStates`).
+- Updates combo state (`comboCount`, `lastMove`) and applies combo bonus damage if `comboPaths` allows.
+- Records move cooldown.
+- Checks if `remainingHealth <= 0` and calls `endBattle`.
+- Emits relevant events (`MoveTriggered`, `DamageDealt`, `CriticalHit`, etc.).
+
+**endBattle:** (Internal - called by `triggerMove`)
+```solidity
+// Conceptual - not explicitly shown but implied by BattleEnded event
+// function endBattle(uint256 characterId, bool victory) internal
+```
+Marks the battle inactive (`battles[characterId].isActive = false`), resets combo count, emits `BattleEnded`.
+
+### Custom Errors
+
+- `NotCharacterOwner()`
+- `NotAuthorized()` (e.g., `triggerMove` caller not approved)
+- `BattleInProgress()`
+- `NoActiveBattle()`
+- `NoEligibleMoves()`
+- `MoveOnCooldown()`
+- `InvalidMoves()` (e.g., for `createComboPath`)
+- `ChanceTooHigh()` (e.g., `setCriticalChance`)
+- `AmountTooHigh()` (e.g., `setLifeSteal`)
+- `NameRequired()`
+- `TriggersRequired()`
+
+---
+
+## Combat Abilities (`CombatAbilities.sol`) 🔮
+
+Manages elemental abilities, status effects (buffs/debuffs), and elemental interactions/combos.
+
+### Contract Setup
+
+**Constructor:**
+```solidity
+constructor(address initialOwner) Ownable()
+```
+Initializes ownership and calls `setupElementalEffectiveness`.
+
+**Dependencies:** None explicitly listed beyond OpenZeppelin Ownable.
+
+**Roles & Access:**
+- `Ownable`: Used for creating abilities and combos.
+- `useAbility`: Can be called externally, likely by players/characters or other game contracts.
+
+### Enums
+
+**Element:**
+```solidity
+enum Element { NEUTRAL, FIRE, WATER, EARTH, AIR, LIGHT, DARK }
+```
+
+**AbilityType:**
+```solidity
+enum AbilityType { DAMAGE, DOT, BUFF, DEBUFF, HEAL, SHIELD, SPECIAL }
+```
+
+### Structs
+
+**Ability:** (Packed)
+```solidity
+struct Ability {
+    string name;
+    AbilityType abilityType;
+    Element element;
+    uint32 power;       // Base magnitude
+    uint32 duration;    // Effect duration in seconds (for DOT, BUFF, DEBUFF)
+    uint32 cooldown;    // Seconds between uses
+    bool isAOE;         // Area of effect?
+    bool requiresCharge;// Special condition?
+    string[] requirements;// Other conditions (e.g., item names)
+    bool active;        // Is usable?
 }
 ```
 
-#### Ability Types
+**StatusEffect:** (Packed - tracks active effects on characters)
 ```solidity
-enum AbilityType {
-    DAMAGE,   // Direct damage
-    DOT,      // Damage over time
-    BUFF,     // Positive effect
-    DEBUFF,   // Negative effect
-    HEAL,     // Healing
-    SHIELD,   // Damage reduction
-    SPECIAL   // Special effects
+struct StatusEffect {
+    bytes32 abilityId;  // ID of the ability causing the effect
+    uint40 startTime;   // Timestamp effect began
+    uint32 duration;    // How long it lasts
+    uint32 power;       // Magnitude (e.g., damage per tick, stat change)
+    bool isActive;      // Is currently active?
 }
 ```
+
+**ComboBonus:** (Packed - defines elemental combos)
+```solidity
+struct ComboBonus {
+    Element[] elements;     // Sequence of elements needed
+    uint32 bonusMultiplier; // Damage multiplier (e.g., 150 for 1.5x)
+    uint32 timeWindow;      // Max seconds between casts to continue combo
+}
+```
+
+### State Variables & Mappings
+
+- `abilities`: `bytes32 => Ability`
+- `statusEffects`: `uint256 (characterId) => StatusEffect[]` (Array of effects on a character)
+- `lastElementCast`: `uint256 (userId) => mapping(Element => uint40 (timestamp))` (Tracks cooldowns)
+- `comboBonuses`: `bytes32 (comboId) => ComboBonus`
+- `elementalEffectiveness`: `Element => mapping(Element => uint16 (percentage))` (e.g., Fire vs Earth = 150)
+
+### Events
+
+- `AbilityCreated(bytes32 indexed id, string name, AbilityType abilityType, Element element)`
+- `AbilityUsed(bytes32 indexed abilityId, uint256 indexed userId, uint256 indexed targetId)`
+- `StatusEffectApplied(uint256 indexed targetId, bytes32 indexed abilityId, uint32 duration)`
+- `ComboAchieved(bytes32 indexed comboId, uint256 indexed userId, uint32 bonusMultiplier)`
+- `ElementalResonance(uint256 indexed userId, Element element, uint32 bonus)` (Likely related to combos/sequences)
 
 ### Core Functions
 
-#### createAbility
+**setupElementalEffectiveness:** (Internal - called by constructor)
+Initializes the `elementalEffectiveness` mapping with base strengths/weaknesses (e.g., Fire > Earth, Fire < Water).
+
+**createAbility:**
 ```solidity
 function createAbility(
     string calldata name,
     AbilityType abilityType,
     Element element,
-    uint256 power,
-    uint256 duration,
-    uint256 cooldown,
+    uint32 power,
+    uint32 duration,
+    uint32 cooldown,
     bool isAOE,
     bool requiresCharge,
     string[] calldata requirements
-) external onlyOwner returns (bytes32)
+) external onlyOwner returns (bytes32 abilityId)
 ```
-Creates a new ability.
+Creates a new ability definition. `abilityId` generated via keccak256.
 
-**Parameters:**
-- `name`: Ability name
-- `abilityType`: Type of ability
-- `element`: Elemental type
-- `power`: Base power
-- `duration`: Effect duration
-- `cooldown`: Cooldown period
-- `isAOE`: Whether affects multiple targets
-- `requiresCharge`: Whether needs charging
-- `requirements`: Required items/conditions
-
-**Returns:**
-- `bytes32`: Unique ID of the created ability
-
-#### useAbility
+**createComboBonus:**
 ```solidity
-function useAbility(
-    bytes32 abilityId,
-    uint256 userId,
-    uint256 targetId
-) external returns (uint256)
+function createComboBonus(Element[] calldata elements, uint32 bonusMultiplier, uint32 timeWindow) external onlyOwner returns (bytes32 comboId)
 ```
-Uses an ability on a target.
+Defines an elemental combo sequence and its reward multiplier. `comboId` generated via keccak256. Requires `elements.length >= 2`.
 
-**Parameters:**
-- `abilityId`: ID of the ability
-- `userId`: ID of the user
-- `targetId`: ID of the target
-
-**Returns:**
-- `uint256`: Effect power
-
-## Combat Quests ⚔️
-
-### CombatQuest Contract
-
-Manages combat-based quests including boss fights and monster hunts.
-
-#### Monster Structure
+**useAbility:**
 ```solidity
-struct Monster {
-    string name;
-    uint256 level;
-    uint256 health;
-    uint256 damage;
-    uint256 defense;
-    uint256 rewardBase;
-    bool isBoss;
-    string[] requiredItems;
-    bool active;
-}
+function useAbility(bytes32 abilityId, uint256 userId, uint256 targetId) external returns (uint256 effectPower)
 ```
+Executes an ability.
+- Checks if ability is active and not on cooldown (`lastElementCast`).
+- Updates `lastElementCast`.
+- Calculates base effect power using internal `calculateAbilityEffect` (considers elemental effectiveness vs target, user's active status effects).
+- Applies status effects to `targetId` using `applyStatusEffect` if `ability.duration > 0`.
+- Checks for completed elemental combos (`checkCombo`) based on `lastElementCast` history and `comboBonuses`. Applies bonus if achieved.
+- Emits `AbilityUsed`, potentially `StatusEffectApplied`, `ComboAchieved`.
+- Returns the final calculated `effectPower`.
 
-### Core Functions
+**applyStatusEffect:** (Internal)
+Adds a `StatusEffect` struct to the `statusEffects[targetId]` array and emits `StatusEffectApplied`. Handles cleanup of expired effects.
 
-#### createMonster
-```solidity
-function createMonster(
-    string calldata name,
-    uint256 level,
-    uint256 health,
-    uint256 damage,
-    uint256 defense,
-    uint256 rewardBase,
-    bool isBoss,
-    string[] calldata requiredItems
-) external onlyOwner returns (bytes32)
-```
-Creates a new monster.
+**calculateAbilityEffect:** (Internal View)
+Calculates power based on base power, elemental effectiveness (`elementalEffectiveness`), and modifies based on the user's current `statusEffects` (buffs/debuffs).
 
-**Parameters:**
-- `name`: Monster name
-- `level`: Monster level
-- `health`: Health points
-- `damage`: Base damage
-- `defense`: Defense rating
-- `rewardBase`: Base reward
-- `isBoss`: Whether it's a boss
-- `requiredItems`: Required items to fight
+**checkCombo:** (Internal)
+Checks if the sequence of recently cast elements by `userId` matches any defined `comboBonuses` within their `timeWindow`.
 
-**Returns:**
-- `bytes32`: Monster ID
+### Custom Errors
 
-#### startBossFight
-```solidity
-function startBossFight(
-    bytes32 monsterId,
-    uint256 duration
-) external onlyOwner returns (bytes32)
-```
-Starts a boss fight.
+- `AbilityNotActive()`
+- `AbilityOnCooldown()`
+- `ComboTooShort()` (For `createComboBonus`)
 
-**Parameters:**
-- `monsterId`: ID of the boss monster
-- `duration`: Fight duration
+---
 
-**Returns:**
-- `bytes32`: Fight ID
+## Combat Quests (`CombatQuest.sol`) 🐉
 
-#### attackBoss
-```solidity
-function attackBoss(
-    bytes32 fightId,
-    uint256 characterId,
-    uint256 damage,
-    bytes32 abilityId
-) external
-```
-Attack a boss monster.
+Manages combat-specific quests like monster hunts and boss fights. This is a brief summary; see `docs/api-reference/quest.md` for full details on the quest system.
 
-**Parameters:**
-- `fightId`: ID of the fight
-- `characterId`: ID of the attacker
-- `damage`: Damage amount
-- `abilityId`: ID of ability used
+### Key Interactions
 
-## Events 📢
+- **Uses `CombatDamageCalculator`**: The `attackBoss` function calls `damageCalculator.calculateDamage(characterId, targetId)` to determine character damage against the boss.
+- **Uses `CombatAbilities`**: Can be configured with abilities (`setMonsterAbilities`). Bosses use these abilities (`useRandomBossAbility`) during fights, potentially applying status effects defined in `CombatAbilities`.
+- **Uses `ItemDrop`**: For distributing loot upon defeating bosses or monsters.
 
-### CombatActions Events
-- `MoveCreated(bytes32 indexed moveId, string name, ActionType[] triggers)`
-- `MoveTriggered(bytes32 indexed moveId, uint256 indexed characterId, uint256 damage)`
-- `ComboTriggered(uint256 indexed characterId, uint256 comboCount, uint256 bonusDamage)`
-- `SpecialEffectTriggered(uint256 indexed characterId, SpecialEffect effect, uint256 value)`
-- `CriticalHit(uint256 indexed characterId, uint256 originalDamage, uint256 criticalDamage)`
+### Combat-Specific Features
 
-### CombatAbilities Events
-- `AbilityCreated(bytes32 indexed id, string name, AbilityType abilityType, Element element)`
-- `AbilityUsed(bytes32 indexed abilityId, uint256 indexed userId, uint256 indexed targetId)`
-- `StatusEffectApplied(uint256 indexed targetId, bytes32 indexed abilityId, uint256 duration)`
-- `ComboAchieved(bytes32 indexed comboId, uint256 indexed userId, uint256 bonusMultiplier)`
+- **Monster/Boss Creation (`createMonster`)**: Defines monsters with stats (health, damage, defense) and whether they are a boss. Uses packed types (`uint32`, `uint128`).
+- **Boss Fights (`startBossFight`, `attackBoss`, `defeatBoss`)**: Manages timed boss encounters where multiple players can deal damage (`damageDealt` mapping). Rewards are distributed based on damage contribution.
+- **Hunts (`createHunt`, `startHunt`, `recordMonsterSlain`, `completeHunt`)**: Manages quests to defeat a specific number of a certain monster type, potentially within a time limit for bonus rewards. Uses packed structs (`PackedHunt`, `PackedHuntProgress`).
+- **Abilities & Loot (`setMonsterAbilities`, `setLootTable`)**: Allows assigning abilities (from `CombatAbilities`) and item drop tables (using `ItemDrop`) to monsters.
 
-### CombatQuest Events
-- `MonsterCreated(bytes32 indexed id, string name, bool isBoss)`
-- `BossFightStarted(bytes32 indexed fightId, bytes32 indexed monsterId, uint256 startTime)`
-- `BossDamageDealt(bytes32 indexed fightId, uint256 indexed characterId, uint256 damage)`
-- `BossDefeated(bytes32 indexed fightId, uint256 totalDamage, uint256 participants)`
-- `HuntCreated(bytes32 indexed id, bytes32 indexed monsterId, uint256 count)`
-- `MonsterSlain(bytes32 indexed huntId, uint256 indexed characterId, uint256 reward)`
+*(Refer to `docs/api-reference/quest.md` for detailed function signatures, structs like `Monster`, `PackedBossFight`, `PackedHunt`, events, etc.)*
 
-## Constants ⚡
+---
 
-### CombatActions
-```solidity
-uint256 public constant MAX_CRIT_CHANCE = 5000;     // 50%
-uint256 public constant MAX_LIFE_STEAL = 2000;      // 20%
-uint256 public constant CHAIN_ATTACK_WINDOW = 5;    // 5 seconds
-uint256 public constant COMBO_BONUS_PERCENT = 1000; // 10% per combo
-uint256 public constant MAX_RANDOM = 10000;         // Base for percentages
-```
-
-### CombatQuest
-```solidity
-uint256 public constant COMBAT_COOLDOWN = 5 minutes; // Time between combat actions
-```
-
-## Best Practices 💡
-
-1. **Combat Move Design**
-   - Balance damage with cooldowns
-   - Consider scaling factors carefully
-   - Use special effects strategically
-   - Design meaningful combos
-
-2. **Ability Management**
-   - Track cooldowns properly
-   - Handle status effects
-   - Consider elemental interactions
-   - Manage AOE effects carefully
-
-3. **Quest Implementation**
-   - Scale monster difficulty appropriately
-   - Balance rewards with challenge
-   - Consider required items
-   - Implement proper cooldowns
-
-4. **Error Handling**
-   - Validate all inputs
-   - Check cooldowns
-   - Verify ownership
-   - Handle status effects properly
-
-May your battles be glorious! 🗡️✨ 
+*May your strikes be true and your defenses hold!* 🛡️🔥 

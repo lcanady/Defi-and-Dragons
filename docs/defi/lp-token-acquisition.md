@@ -1,114 +1,128 @@
-# 💫 Acquiring LP Tokens
+# 💫 Acquiring LP Tokens via the AMM
 
-Welcome, aspiring liquidity provider! Before you can stake tokens in our sacred pools or craft mystical equipment, you must first obtain the necessary LP tokens. This guide will show you how.
+Welcome, liquidity provider! To participate in [Staking](./defi-mechanics.md#arcanestaking-system-) or certain [Crafting Recipes](./defi-mechanics.md#arcanecrafting-system-), you often need Liquidity Provider (LP) tokens. This guide explains how to obtain them using the in-game Automated Market Maker (AMM).
 
 ## Understanding LP Tokens 🧠
 
-LP (Liquidity Provider) tokens are special receipts you receive when you provide liquidity to a trading pair in our Arcane AMM. These tokens represent your share of the liquidity pool and can be:
+LP tokens represent your share in an AMM liquidity pool (e.g., a pool containing the Game Token and ETH). When you deposit a pair of tokens into a pool, you receive LP tokens back.
 
-1. Staked in our ArcaneStaking pools to earn GOLD rewards
-2. Used as crafting materials for powerful equipment
-3. Redeemed later to withdraw your original tokens (plus or minus trading fees and impermanent loss)
+These LP tokens can then be:
 
-## Step-by-Step Guide to Providing Liquidity 🔄
+1.  Staked in `ArcaneStaking` pools to earn rewards.
+2.  Used as ingredients in `ArcaneCrafting` recipes.
+3.  Redeemed later by removing your liquidity from the AMM pool (receiving back the underlying tokens plus earned trading fees, minus any [Impermanent Loss](./defi-mechanics.md#risk-considerations-)).
+
+## Providing Liquidity (Recommended: via GameFacade) 🔄
+
+The easiest and recommended way to add liquidity is through the `GameFacade` contract, which interacts with the `ArcaneRouter` on your behalf.
 
 ### 1. Prepare Your Tokens
 
-First, you need both tokens in the trading pair. For example, to get WETH-GOLD LP tokens:
+Ensure you have sufficient balances of *both* tokens required for the liquidity pair you want to join (e.g., Game Token and WETH).
 
-```javascript
-// Check your balances
+```typescript
+// Conceptual Example (Check balances)
+const gameTokenBalance = await gameToken.balanceOf(yourAddress);
 const wethBalance = await weth.balanceOf(yourAddress);
-const goldBalance = await gold.balanceOf(yourAddress);
-
-// Make sure you have sufficient amounts of both tokens
-console.log(`WETH Balance: ${ethers.utils.formatEther(wethBalance)}`);
-console.log(`GOLD Balance: ${ethers.utils.formatEther(goldBalance)}`);
+console.log(`Game Token: ${ethers.utils.formatEther(gameTokenBalance)}`);
+console.log(`WETH: ${ethers.utils.formatEther(wethBalance)}`);
 ```
 
-### 2. Approve the Router
+### 2. Approve the Router (via Facade Interaction)
 
-Before adding liquidity, you need to approve the router to spend your tokens:
+When using the `GameFacade`'s liquidity functions, you still need to approve the underlying `ArcaneRouter` contract to spend your tokens. The `GameFacade` address itself typically does *not* need approval, but the router *does*. Get the router address from the `GameFacade` or configuration.
 
-```javascript
-// Approve router to spend your tokens
-await weth.approve(arcaneRouter.address, amountWETH);
-await gold.approve(arcaneRouter.address, amountGOLD);
+```typescript
+// Conceptual Example (Approve Router)
+const routerAddress = await gameFacade.arcaneRouter(); // Get router address
+
+// Approve the ROUTER to spend your tokens
+await gameToken.approve(routerAddress, amountGameTokenToProvide);
+await weth.approve(routerAddress, amountWethToProvide);
 ```
 
-### 3. Add Liquidity
+### 3. Add Liquidity via Facade
 
-Now you can provide liquidity and receive LP tokens:
+Call the `addLiquidity` function on the `GameFacade`, providing the necessary details.
 
-```javascript
-// Parameters
-const tokenA = weth.address;
-const tokenB = gold.address;
-const amountADesired = ethers.utils.parseEther("1"); // 1 WETH
-const amountBDesired = ethers.utils.parseEther("100"); // 100 GOLD
-const amountAMin = ethers.utils.parseEther("0.95"); // 0.95 WETH minimum
-const amountBMin = ethers.utils.parseEther("95"); // 95 GOLD minimum
-const recipient = yourAddress;
+```typescript
+// Conceptual Example (Add Liquidity via GameFacade)
 
-// Add liquidity
-const tx = await arcaneRouter.addLiquidity(
-    tokenA,
-    tokenB,
-    amountADesired,
-    amountBDesired,
-    amountAMin,
-    amountBMin,
-    recipient
+// Parameters needed for the facade's addLiquidity function
+const tokenA_Address = gameToken.address;
+const tokenB_Address = weth.address;
+const amountA_Desired = ethers.utils.parseEther("1000"); // e.g., 1000 Game Tokens
+const amountB_Desired = ethers.utils.parseEther("1");    // e.g., 1 WETH
+const amountA_Min = ethers.utils.parseEther("990");   // Slippage protection
+const amountB_Min = ethers.utils.parseEther("0.99");  // Slippage protection
+const deadline = Math.floor(Date.now() / 1000) + 60 * 10; // 10 minutes from now
+
+console.log("Adding liquidity via GameFacade...");
+const tx = await gameFacade.addLiquidity(
+    tokenA_Address,
+    tokenB_Address,
+    amountA_Desired,
+    amountB_Desired,
+    amountA_Min,
+    amountB_Min,
+    deadline
+    // The Facade likely handles the 'to' address internally (msg.sender)
 );
 
-// Wait for transaction confirmation
 const receipt = await tx.wait();
-console.log("Liquidity added successfully!");
+console.log("Liquidity added successfully! TX:", receipt.transactionHash);
+// Note: You'll need to find the LP token address separately (see below)
+// and check your balance of that LP token.
 ```
 
-### 4. Check Your LP Tokens
+### 4. Finding & Checking LP Tokens
 
-After providing liquidity, you'll receive LP tokens that represent your share of the pool:
+After successfully adding liquidity, LP tokens for that pair's pool will be sent to your address. To find the address of the LP token contract:
 
-```javascript
-// Get the LP token address
-const pairAddress = await arcaneFactory.getPair(weth.address, gold.address);
-const lpToken = new ethers.Contract(pairAddress, ArcaneABI, signer);
+-   **Use the UI:** The game interface should display your LP token balances and potentially the addresses.
+-   **Query the Factory:** Use the `ArcaneFactory` address (available from `GameFacade`) and call its `getPair(tokenA, tokenB)` function to get the LP token (pair) contract address.
 
-// Check your LP token balance
-const lpBalance = await lpToken.balanceOf(yourAddress);
-console.log(`LP Token Balance: ${ethers.utils.formatEther(lpBalance)}`);
+```typescript
+// Conceptual Example (Find Pair and Check Balance)
+const factoryAddress = await gameFacade.arcaneFactory();
+const factory = new ethers.Contract(factoryAddress, ArcaneFactoryABI, signer);
+
+const pairAddress = await factory.getPair(gameToken.address, weth.address);
+console.log("LP Token (Pair) Address:", pairAddress);
+
+if (pairAddress !== ethers.constants.AddressZero) {
+    const lpTokenContract = new ethers.Contract(pairAddress, UniswapV2PairABI, signer); // Use appropriate Pair ABI
+    const lpBalance = await lpTokenContract.balanceOf(yourAddress);
+    console.log(`Your LP Token Balance: ${ethers.utils.formatEther(lpBalance)}`);
+}
 ```
 
-## Available Trading Pairs 🏦
+## Removing Liquidity
 
-We currently support the following trading pairs for LP tokens:
+To redeem your LP tokens for the underlying assets:
 
-| Pair | Tokens | Pool ID for Staking |
-|------|--------|---------------------|
-| WETH-GOLD | Wrapped ETH + GOLD | 0 |
-| USDC-GOLD | USDC + GOLD | 1 |
-| WBTC-GOLD | Wrapped BTC + GOLD | 2 |
+1.  **Approve Router for LP Tokens:** Approve the `ArcaneRouter` address to spend your LP tokens.
+2.  **Call Facade:** Use the `removeLiquidity` function on the `GameFacade`, specifying the token pair, the amount of LP tokens to burn, minimum amounts of underlying tokens expected back (for slippage), and a deadline.
 
-## Understanding Impermanent Loss Risk ⚠️
+## Discovering Available Pairs 🏦
 
-When providing liquidity, be aware of impermanent loss:
+The specific liquidity pairs available (e.g., GAME_TOKEN-WETH, GAME_TOKEN-USDC) and any associated staking pools are managed dynamically.
 
-- **What it is**: Potential loss compared to simply holding tokens when price ratio changes
-- **Example**: If you deposit equal values of GOLD and ETH, and GOLD price rises significantly, you'll have less GOLD and more ETH compared to if you had just held both
-- **When it matters**: The more volatile the pair and the greater the price change, the higher the impermanent loss
+-   **Check the Game UI:** The official interface is the best place to see currently supported pairs and staking opportunities.
+-   **Query the Factory:** Advanced users can query the `ArcaneFactory` contract's `allPairsLength()` and `allPairs(index)` functions to enumerate all created pairs.
 
-## Tips for New Liquidity Providers 💡
+## Tips for Liquidity Providers 💡
 
-1. **Start small**: Begin with a small amount until you're comfortable with the process
-2. **Choose your pair wisely**: Lower volatility pairs typically have less impermanent loss
-3. **Monitor your position**: Check your LP tokens and pool status regularly
-4. **Calculate returns**: Make sure staking rewards or crafting benefits outweigh potential impermanent loss
+1.  **Understand Impermanent Loss:** Be aware of the risk associated with price divergence (see [DeFi Mechanics](./defi-mechanics.md#risk-considerations-)).
+2.  **Start Small:** If new, provide a smaller amount of liquidity first.
+3.  **Monitor:** Keep an eye on the pool's performance and your position.
+4.  **Evaluate Rewards:** Ensure potential staking rewards or crafting benefits justify the risks (IL, gas costs).
 
 ## Next Steps 👣
 
-Now that you have LP tokens, you can:
-- [Stake them for GOLD rewards](index.md#channeling-your-power)
-- [Craft powerful equipment](index.md#the-mystic-forge)
+With your acquired LP tokens, you can now:
+
+-   [Stake them in ArcaneStaking](./defi-mechanics.md#arcanestaking-system-)
+-   [Use them in ArcaneCrafting recipes](./defi-mechanics.md#arcanecrafting-system-)
 
 May your liquidity pools be ever full and profitable! 🌊💰 

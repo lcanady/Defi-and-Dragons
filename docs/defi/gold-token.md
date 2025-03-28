@@ -1,6 +1,6 @@
 # 🔱 The GOLD Token
 
-Welcome, treasure seeker! The GOLD token is the lifeblood of our magical economy, flowing through every aspect of our game. This document unveils the mysteries of this precious resource.
+Welcome, adventurer! The GOLD token is the core ERC-20 currency fueling the DeFi & Dragons economy. This document details its properties and role within the game.
 
 ## Token Overview 🪙
 
@@ -9,109 +9,74 @@ Welcome, treasure seeker! The GOLD token is the lifeblood of our magical economy
 | Name | Game Token |
 | Symbol | GOLD |
 | Standard | ERC-20 |
-| Total Supply | Dynamic - minted as rewards |
-| Contract | `GameToken.sol` |
+| Supply | Mintable via authorized contracts |
+| Primary Source | [ArcaneStaking Rewards](./defi-mechanics.md#arcanestaking-system-) |
 
-## Core Functions & Utility 🛠️
+## Core Utility 🛠️
 
-GOLD serves as the primary in-game currency with multiple uses:
+GOLD serves multiple functions within the game ecosystem:
 
-### Current Utility
-- **Staking Rewards**: Earned from providing LP tokens to ArcaneStaking pools
-- **Equipment Crafting**: Required for certain high-tier equipment recipes
-- **Character Progression**: Used to enhance character abilities
-- **Marketplace Currency**: The medium of exchange for in-game items
-
-### Smart Contract Interface
-
-```solidity
-interface IGameToken is IERC20 {
-    function mint(address to, uint256 amount) external;
-    function burn(address from, uint256 amount) external;
-    function setQuestContract(address questContract, bool authorized) external;
-    function setMarketplaceContract(address marketplaceContract, bool authorized) external;
-}
-```
+- **Staking Rewards**: The primary reward distributed for staking LP tokens in [ArcaneStaking](./defi-mechanics.md#arcanestaking-system-).
+- **Crafting Ingredient**: May be required as a component in certain [ArcaneCrafting](./defi-mechanics.md#arcanecrafting-system-) recipes.
+- **Marketplace Currency**: Used for buying and selling items on the [Marketplace](../api-reference/game-facade.md#marketplace-interactions). (*Note: Specific marketplace mechanics determine if GOLD is transferred or potentially burned.*)
+- **Quest Rewards**: Distributed upon successful completion of certain [Quests](../api-reference/quest.md).
+- **Character Actions**: Potentially used for specific character upgrades or actions (details TBC based on final implementation).
 
 ## Obtaining GOLD 💰
 
-There are currently several ways to acquire GOLD tokens:
+You can acquire GOLD tokens through several in-game activities:
 
-1. **LP Staking**: The primary source - stake LP tokens in ArcaneStaking pools
-2. **Character Adventures**: Complete quests and battles (coming soon)
-3. **Special Events**: Participate in limited-time events (coming soon)
+1.  **LP Staking**: Stake eligible LP tokens in `ArcaneStaking` pools to earn GOLD emissions.
+2.  **Quest Completion**: Successfully completing various quests often yields GOLD rewards.
+3.  **Marketplace Sales**: Selling items or resources to other players on the marketplace.
+4.  **Special Events**: Participating in limited-time game events may offer GOLD prizes.
 
-### Example: Claiming Staking Rewards
+## Tokenomics & Supply 📊
 
-```javascript
-// Claiming GOLD from staking without withdrawing LP tokens
-async function harvestRewards(poolId) {
-    // Deposit 0 to harvest rewards
-    const tx = await arcaneStaking.deposit(poolId, 0);
-    const receipt = await tx.wait();
-    
-    // Get reward amount from event
-    const event = receipt.events.find(e => e.event === 'RewardPaid');
-    const rewardAmount = event.args.amount;
-    
-    console.log(`Harvested ${ethers.utils.formatEther(rewardAmount)} GOLD tokens!`);
-    return rewardAmount;
-}
-```
+### Emission (Minting)
 
-## Tokenomics 📊
+-   New GOLD tokens are primarily minted by the `ArcaneStaking` contract as rewards for liquidity providers.
+-   The rate of emission is **dynamic** and depends on:
+    -   The global `rewardPerBlock` configured in `ArcaneStaking`.
+    -   The `allocPoint` (allocation points) assigned to each specific staking pool, determining its share of the global rewards.
+-   Only contracts granted the `MINTER_ROLE` (like `ArcaneStaking`) can create new GOLD tokens.
 
-### Emission Schedule
+### Burning
 
-GOLD is emitted as staking rewards at the following rates:
+-   GOLD tokens may be removed from circulation (burned) through specific game mechanics to manage supply.
+-   Potential burning mechanisms include:
+    -   Fees for certain marketplace actions.
+    -   Consumption during high-tier `ArcaneCrafting` recipes.
+-   Contracts authorized with a `BURNER_ROLE` or similar permission handle the burning process.
 
-| Pool | LP Pair | Emission Rate |
-|------|---------|---------------|
-| 0 | WETH-GOLD | 1 GOLD per block |
-| 1 | USDC-GOLD | 0.5 GOLD per block |
-| 2 | WBTC-GOLD | 0.75 GOLD per block |
+### Total Supply
 
-### Supply Mechanics
-
-- **Minting**: New GOLD is minted through the staking contract as rewards
-- **Burning**: GOLD is burned when used for crafting high-tier items or certain marketplace purchases
-- **Allocation**: The protocol allocates new emissions based on pool allocation points
+-   The total supply of GOLD is not fixed and changes based on the balance between minting (rewards) and burning (consumption/fees).
 
 ## Governance & Control 🏛️
 
-The GOLD token smart contract implements the following security measures:
+The GOLD token contract uses OpenZeppelin's `AccessControl` for security:
 
-- **Access Control**: Only authorized addresses can mint or burn tokens
-- **Role-Based Permissions**: Using OpenZeppelin's AccessControl
-- **Quest Integration**: Special permissions for quest contracts
-- **Marketplace Integration**: Designated permissions for marketplace interactions
-
-### Access Structure
-
-- **Owner**: Can configure authorized contracts and mint/burn permissions
-- **MINTER_ROLE**: Allowed to mint new tokens (primarily the staking contract)
-- **Quest Contracts**: Can trigger reward distribution
-- **Marketplace**: Can facilitate transactions and burns
+-   **Owner/Admin**: Manages roles and authorized contract addresses.
+-   **MINTER_ROLE**: Granted to contracts responsible for distributing GOLD (e.g., `ArcaneStaking`).
+-   **BURNER_ROLE**: Granted to contracts responsible for removing GOLD from circulation (e.g., potentially `ArcaneCrafting`, `Marketplace`).
+-   **Specific Permissions**: May grant limited permissions to quest or other system contracts for specific interactions if needed.
 
 ## GOLD in the Game Economy 🌍
 
-GOLD forms the foundation of our in-game economy, creating circular flows:
+GOLD facilitates a circular flow:
 
-1. Players provide liquidity to earn GOLD
-2. GOLD is spent on crafting powerful items
-3. These items enhance characters' abilities
-4. More powerful characters can earn more GOLD through gameplay
-5. Excess GOLD can be used to create LP tokens, completing the cycle
+1.  Players engage in DeFi (staking) or gameplay (quests) to earn GOLD.
+2.  GOLD is spent on gameplay progression (crafting, marketplace purchases).
+3.  Improved gear/items potentially allow players to earn GOLD more effectively.
+4.  Excess GOLD might be used to provide liquidity (creating LP tokens), restarting the cycle.
 
 ## Viewing Your Balance 👁️
 
-```javascript
-// Check your GOLD balance
-async function checkGoldBalance(address) {
-    const balance = await goldToken.balanceOf(address);
-    console.log(`GOLD Balance: ${ethers.utils.formatEther(balance)}`);
-    return balance;
-}
-```
+You can check your GOLD balance using standard methods:
 
-May your coffers overflow with GOLD, brave adventurer! ✨💰 
+-   Connect your wallet to the game's UI.
+-   Use a blockchain explorer (like Etherscan) by entering your wallet address on the GOLD token's contract page.
+-   Query the `balanceOf(yourAddress)` function directly on the GOLD token contract using developer tools.
+
+May your coffers overflow with GOLD! ✨💰 

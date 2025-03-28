@@ -1,187 +1,104 @@
-# 🔮 The Arcane Connection: DeFi & Gameplay Basics
+# 🔮 The Arcane Connection: DeFi & Gameplay Mechanics
 
-*Within these sacred scrolls lies the knowledge of how our mystical realm interacts with decentralized finance. Here, brave adventurer, you'll learn the fundamentals of our DeFi features.*
+This document details *how* the core DeFi integrations - Staking, Crafting, and the AMM - function and connect to the gameplay systems of DeFi & Dragons.
 
-## The Core Mechanism 🌉
-
-Our game currently integrates with DeFi through a simple but powerful mechanism: LP token staking. This foundational feature allows you to:
-
-1. Stake LP tokens in our ArcaneStaking pools
-2. Earn GOLD token rewards over time
-3. Use these rewards within the game ecosystem
+*(For a high-level overview, see [DeFi Integration Index](./index.md). For specific contract functions, see the [GameFacade API Reference](../api-reference/game-facade.md).)*
 
 ## ArcaneStaking System 🏦
 
-The primary DeFi feature currently implemented is our ArcaneStaking contract:
+The `ArcaneStaking` contract allows players to earn rewards by staking specific tokens, typically Liquidity Provider (LP) tokens obtained from the in-game [Automated Market Maker (AMM)](./lp-token-acquisition.md).
 
-```solidity
-struct PoolInfo {
-    IERC20 lpToken;              // The LP token staked
-    uint256 allocPoint;          // Allocation points for this pool
-    uint256 lastRewardBlock;     // Last block rewards were calculated
-    uint256 accRewardPerShare;   // Accumulated rewards per share
-    uint256 totalStaked;         // Total LP tokens staked
-    uint256 minStakingTime;      // Minimum staking period
-}
+### Staking & Earning Rewards
 
-struct UserInfo {
-    uint256 amount;         // LP tokens staked by user
-    uint256 rewardDebt;     // Reward debt calculation
-    uint256 lastStakeTime;  // Timestamp of last stake
-}
-```
+1.  **Acquire LP Tokens:** Provide liquidity to a supported pair (e.g., GAME_TOKEN-ETH) in the AMM to receive LP tokens representing your share of the pool. (See [LP Token Acquisition](./lp-token-acquisition.md)).
+2.  **Approve Staking Contract:** Before staking, you must approve the `ArcaneStaking` contract to spend your LP tokens.
+3.  **Stake (Deposit):** Call the staking function (likely `stakeArcane` via `GameFacade`) specifying the pool ID and the amount of LP tokens you wish to stake.
+4.  **Earn Rewards:** While your tokens are staked, you continuously accrue reward tokens (e.g., the primary game token) based on the pool's allocation points, the total amount staked in the pool, and the global reward rate.
+5.  **Harvest Rewards:** You can claim your accrued rewards. This often happens automatically when you deposit more tokens or withdraw existing ones. Some contracts also have a dedicated claim function or allow depositing `0` amount to trigger a harvest.
 
-### Staking Your LP Tokens
+### Withdrawing
 
-To participate in our staking system:
+1.  **Check Minimum Duration:** Pools may have a minimum staking period. Ensure this duration has passed since your last deposit before attempting to withdraw.
+2.  **Withdraw:** Call the unstaking function (likely `unstakeArcane` via `GameFacade`) specifying the pool ID and the amount of LP tokens to remove. This action typically also harvests any pending rewards.
 
-```typescript
-// Stake LP tokens in a pool
-async function stakeLP(poolId, amount) {
-    // Get LP token address for this pool
-    const poolInfo = await arcaneStaking.poolInfo(poolId);
-    const lpToken = new ethers.Contract(poolInfo.lpToken, IERC20ABI, signer);
-    
-    // Approve staking contract to spend LP tokens
-    await lpToken.approve(arcaneStaking.address, amount);
-    
-    // Stake tokens
-    await arcaneStaking.deposit(poolId, amount);
-    
-    console.log(`Staked ${ethers.utils.formatEther(amount)} LP tokens in pool ${poolId}`);
-}
-```
+### Reward Calculation
 
-### Claiming Your Rewards
+Rewards are generally calculated per block based on:
 
-Harvest your earned GOLD tokens:
+-   **Global Reward Rate:** How many reward tokens are distributed across *all* pools per block.
+-   **Pool Allocation Points:** Each pool has points determining its share of the global rewards.
+-   **Your Share:** Your portion of the total LP tokens staked in that specific pool.
 
-```typescript
-// Claim staking rewards
-async function harvestRewards(poolId) {
-    // Call deposit with 0 amount to harvest rewards
-    await arcaneStaking.deposit(poolId, 0);
-    
-    // Check new pending rewards
-    const pendingReward = await arcaneStaking.pendingReward(poolId, walletAddress);
-    console.log(`Rewards harvested. New pending rewards: ${ethers.utils.formatEther(pendingReward)} GOLD`);
-}
-```
+The contract tracks rewards internally using concepts like `accumulatedRewardPerShare`. You can usually check your estimated pending rewards via a view function before claiming.
 
-### Withdrawing Your LP Tokens
+### Pool Information
 
-When you're ready to withdraw:
+Active staking pools, their required LP tokens, reward rates (derived from allocation points), and minimum staking times are **dynamically managed** by the contract owner. This information is *not* hardcoded. To find current pools:
 
-```typescript
-// Withdraw LP tokens from a pool
-async function withdrawLP(poolId, amount) {
-    // Check staking time requirements
-    const userInfo = await arcaneStaking.userInfo(poolId, walletAddress);
-    const poolInfo = await arcaneStaking.poolInfo(poolId);
-    const now = Math.floor(Date.now() / 1000);
-    const stakingTime = now - userInfo.lastStakeTime;
-    
-    if (stakingTime < poolInfo.minStakingTime) {
-        console.error(`Cannot withdraw yet. Need to stake for ${poolInfo.minStakingTime} seconds. Currently staked for ${stakingTime} seconds.`);
-        return;
-    }
-    
-    // Withdraw tokens
-    await arcaneStaking.withdraw(poolId, amount);
-    console.log(`Withdrawn ${ethers.utils.formatEther(amount)} LP tokens from pool ${poolId}`);
-}
-```
+-   Consult the game's official User Interface (UI).
+-   Query the `poolInfo` (or similar) array/mapping directly on the blockchain using explorers or developer tools.
 
-## LP Token Crafting ⚒️
+### Gameplay Integration
 
-Our second DeFi feature allows you to use LP tokens to craft in-game equipment:
+-   **Protocol Quests:** Staking actions (depositing, maintaining a staked amount) can fulfill objectives in certain [Protocol Quests](../api-reference/quest.md#protocol-quests-protocolquestsol).
+-   **Combat Actions:** The act of staking or harvesting might trigger specific [Combat Actions](../api-reference/combat.md#combat-actions-sol-), granting combat bonuses or effects.
 
-```solidity
-struct Recipe {
-    uint256 requiredLevel;      // Character level needed
-    IERC20[] requiredTokens;    // LP tokens required
-    uint256[] requiredAmounts;  // Amount of each token
-    uint256 cooldown;           // Crafting cooldown period
-    bool active;                // Whether recipe is active
-}
-```
+## ArcaneCrafting System ⚒️
 
-### Crafting Equipment
+The `ArcaneCrafting` contract allows players to transform specific input tokens (like LP tokens or other resources) into Equipment NFTs based on defined recipes.
 
-```typescript
-// Craft equipment using LP tokens
-async function craftBasicEquipment(recipeId) {
-    // Get recipe details
-    const recipe = await arcaneCrafting.getRecipe(recipeId);
-    
-    // Check LP token requirements (simplified)
-    const lpToken = new ethers.Contract(recipe.requiredTokens[0], IERC20ABI, signer);
-    const balance = await lpToken.balanceOf(walletAddress);
-    
-    if (balance.lt(recipe.requiredAmounts[0])) {
-        console.error(`Insufficient LP tokens! Have ${ethers.utils.formatEther(balance)}, need ${ethers.utils.formatEther(recipe.requiredAmounts[0])}`);
-        return;
-    }
-    
-    // Approve crafting contract
-    await lpToken.approve(arcaneCrafting.address, recipe.requiredAmounts[0]);
-    
-    // Craft the item
-    const tx = await arcaneCrafting.craftItem(recipeId);
-    const receipt = await tx.wait();
-    
-    // Get equipment ID from event
-    const event = receipt.events.find(e => e.event === 'ItemCrafted');
-    const equipmentId = event.args.equipmentId;
-    
-    console.log(`Successfully crafted equipment! ID: ${equipmentId}`);
-    return equipmentId;
-}
-```
+### Crafting Process
 
-## Current Pool Information 📊
+1.  **Obtain Recipe Info:** Identify the `recipeId` for the desired item. Recipes define:
+    *   The resulting Equipment item ID.
+    *   The required input tokens (e.g., a specific LP token, resource tokens).
+    *   The required amounts of each input token.
+    *   A potential cooldown period after crafting.
+2.  **Acquire Inputs:** Gather the necessary LP tokens and any other required resource tokens.
+3.  **Approve Crafting Contract:** Approve the `ArcaneCrafting` contract to spend the required amounts of *all* input tokens.
+4.  **Craft:** Call the crafting function (likely `craftArcane` via `GameFacade`), providing the `recipeId`.
+5.  **Receive Item:** If successful, the required input tokens are burned/transferred, and the resulting Equipment NFT is minted to your character's wallet or your address.
 
-We currently offer the following staking pools:
+### AMM-Required Gear
 
-| Pool ID | LP Token | Reward Rate | Min Staking Time |
-|---------|----------|-------------|------------------|
-| 0 | WETH-GOLD | 1 GOLD/block | 1 day |
-| 1 | USDC-GOLD | 0.5 GOLD/block | 12 hours |
-| 2 | WBTC-GOLD | 0.75 GOLD/block | 2 days |
+Some crafting recipes might produce special gear flagged as "AMM Required." This flag (`ammRequiredGear` in the contract) indicates that the item's full potential or specific abilities might only be active when the player is actively providing liquidity in a related AMM pool. Check item descriptions or the UI for specifics.
 
-## Understanding Impermanent Loss ⚠️
+### Gameplay Integration
 
-When providing liquidity to get LP tokens, be aware of impermanent loss:
+-   **Resource Sink:** Crafting provides a valuable way to use accumulated tokens and resources.
+-   **Gear Progression:** Allows players to create powerful items beyond relying solely on random drops.
+-   **Protocol Quests:** Crafting specific items might be an objective in certain [Protocol Quests](../api-reference/quest.md#protocol-quests-protocolquestsol).
 
-```
-Impermanent Loss happens when the price of your tokens changes compared to when you deposited them in the pool.
-```
+## AMM Integration (Swapping & Liquidity)
 
-A simplified explanation:
+The in-game Automated Market Maker (AMM), powered by contracts like `ArcaneRouter`, `ArcanePair`, and `ArcaneFactory`, facilitates token swaps and liquidity provision.
 
-1. You deposit equal values of GOLD and ETH into a pool
-2. If GOLD price rises compared to ETH, you'll have less GOLD and more ETH
-3. If you had just held, you would have more total value
-4. This difference is impermanent loss
+### Swapping Tokens
+
+-   Players can swap between different game-related tokens (e.g., Game Token <> Resource Token, Game Token <> ETH) via the `ArcaneRouter` (likely accessed through `swapTokens` on the `GameFacade`). Standard swap parameters like amounts, slippage tolerance, and deadlines apply.
+
+### Providing Liquidity
+
+-   Players can deposit pairs of tokens into liquidity pools via the `ArcaneRouter` (likely accessed through `addLiquidity`/`removeLiquidity` on the `GameFacade`) to receive LP tokens.
+-   LP tokens represent a share of the pool and earn trading fees.
+-   These LP tokens are often the required input for `ArcaneStaking` pools or `ArcaneCrafting` recipes.
+-   See: [LP Token Acquisition Guide](./lp-token-acquisition.md).
+
+### Gameplay Integration
+
+-   **Economy:** The AMM is crucial for price discovery and enabling players to exchange different types of game resources and currency.
+-   **Staking/Crafting:** Necessary for obtaining the LP tokens often required for staking and crafting.
+-   **Protocol Quests:** Actions like swapping or adding/removing liquidity can fulfill objectives in [Protocol Quests](../api-reference/quest.md#protocol-quests-protocolquestsol).
+-   **Combat Actions:** Swapping or liquidity provision might trigger specific [Combat Actions](../api-reference/combat.md#combat-actions-sol-).
 
 ## Risk Considerations 🛡️
 
-Be aware of these risks when using our DeFi features:
+Engaging with these DeFi mechanics carries inherent risks:
 
-1. **Smart Contract Risk**: Despite audits, contracts may have vulnerabilities
-2. **Impermanent Loss**: As explained above
-3. **Token Price Volatility**: GOLD token price may fluctuate
-4. **Gas Costs**: Transaction fees can be significant during network congestion
+1.  **Smart Contract Risk:** Bugs or vulnerabilities could exist, potentially leading to loss of funds. Interact at your own risk.
+2.  **Impermanent Loss:** Providing liquidity to the AMM means the value of your assets might be lower upon withdrawal compared to simply holding them if prices diverge.
+3.  **Token Price Volatility:** The value of game tokens, reward tokens, and LP tokens can fluctuate significantly.
+4.  **Gas Costs:** Blockchain transaction fees can impact the profitability of DeFi actions.
+5.  **Staking Risks:** Minimum staking times lock funds. Reward rates can change if pool parameters (like allocation points) are adjusted by the owner.
 
-## Upcoming Features 🔮
-
-While our current DeFi integration is straightforward, we plan to expand with:
-
-- Protocol quests for popular DeFi platforms
-- DeFi action tracking for character abilities
-- Cross-chain support
-- Advanced LP token crafting recipes
-
-Stay tuned for announcements as we develop these features!
-
-May your staking be profitable and your crafted items powerful, brave adventurer! 💰✨ 
+*Always understand the mechanics and risks before participating in DeFi activities.* 💰✨ 

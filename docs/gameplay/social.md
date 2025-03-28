@@ -1,313 +1,59 @@
-# The Fellowship Guide 🤝
+# The Fellowship Guide: Teamwork & Referrals 🤝
 
-Welcome to the social realm of DeFi & Dragons! Here you'll learn how to forge alliances, join guilds, and tackle epic team challenges.
-
-## 🏰 Guilds
-
-### Team Formation
-```solidity
-// Form a team for a quest
-const teamId = await socialQuest.formTeam(
-    questId,
-    [characterId1, characterId2, characterId3],
-    {
-        minTeamSize: 3,
-        maxTeamSize: 5
-    }
-);
-
-// Record team contribution
-await socialQuest.recordContribution(
-    questId,
-    characterId,
-    contributionValue
-);
-```
-
-### Team Features
-- Collaborative quest completion
-- Shared quest rewards
-- Top contributor bonuses
-- Enhanced drop rates for team activities
-- Team progress tracking
-
-### Creating a Guild
-```solidity
-// Found a new guild
-const guildId = await socialSystem.createGuild(
-    name,
-    description,
-    {
-        minLevel: 10,
-        entryFee: ethers.parseEther("100"),
-        maxMembers: 50
-    }
-);
-
-// Set guild roles
-await socialSystem.setGuildRoles(
-    guildId,
-    [
-        "Guildmaster",
-        "Officer",
-        "Veteran",
-        "Member",
-        "Initiate"
-    ]
-);
-```
-
-### Guild Features
-- Shared quest rewards
-- Guild bank system
-- Internal marketplace
-- Guild achievements
-- Special guild quests
+Welcome, adventurer! Collaboration and community are vital in DeFi & Dragons. This guide explains how you can team up with fellow players for greater challenges and rewards, and how you can help the realm grow through referrals.
 
 ## ⚔️ Team Quests
 
-### Forming a Party
-```solidity
-// Create a party for team quest
-const teamId = await socialQuest.formTeam(
-    questId,
-    [characterId1, characterId2, characterId3],
-    {
-        requiredRoles: ["Tank", "DPS", "Support"],
-        minLevel: 5
-    }
-);
+Some challenges are too great for a single hero. Team Quests allow groups of players to pool their efforts towards a common objective, sharing in the glory and spoils.
 
-// Coordinate team actions
-await socialQuest.synchronizeActions(
-    teamId,
-    actionType,
-    timestamp
-);
-```
+### How Team Quests Work
 
-### Team Synergies
-```solidity
-// Calculate team composition bonus
-const bonus = await socialQuest.calculateTeamBonus(
-    teamId,
-    {
-        checkAttributes: true,
-        checkEquipment: true,
-        checkPets: true
-    }
-);
+1.  **Quest Definition:** Special `TeamQuest` templates are created (by admins) defining the quest's goal (e.g., a total contribution target like defeating X monsters or collecting Y resources as a group), the required team size (min/max), the duration, and the rewards.
+    *   See: [`createTeamQuest` in SocialQuest API](./../api-reference/quest.md#createteamquest)
+2.  **Forming a Team:** A player (who must own all characters being added) can form a team specifically for a chosen `TeamQuest`. They provide the character IDs of the members.
+    *   The system checks if the team size is valid and if the characters are available.
+    *   See: [`formTeam` in SocialQuest API](./../api-reference/quest.md#formteam)
+3.  **Contributing:** As team members participate in the game (performing actions relevant to the quest objective), their contributions can be recorded.
+    *   This might happen automatically via integrated systems or require explicit calls (e.g., by an approved contract or the character owner).
+    *   The system tracks the total contribution for the team.
+    *   See: [`recordContribution` in SocialQuest API](./../api-reference/quest.md#recordcontribution)
+4.  **Completion & Rewards:** Once the team's total contribution reaches the quest's target value within the time limit:
+    *   The quest is marked complete for the team.
+    *   A base reward (game tokens) is calculated and distributed among all members.
+    *   A bonus reward may be given to the top contributor.
+    *   Team members might receive an increased chance for item drops via the Item Drop system.
+    *   See: [`completeTeamQuest` (Internal Logic) & Events in SocialQuest API](./../api-reference/quest.md#completeteamquest-internal)
 
-// Apply team buffs
-await socialQuest.applyTeamBuffs(
-    teamId,
-    buffType,
-    duration
-);
-```
+### Key Aspects
 
-## 🤝 Social Features
+-   **Temporary Teams:** Teams are formed *per quest instance*. They aren't persistent guilds.
+-   **Shared Goal:** Success depends on the collective effort of the team reaching the target.
+-   **Shared Rewards:** Rewards are typically split, incentivizing cooperation.
 
-### Referral System
-```solidity
-// Refer a new player
-const referralId = await socialQuest.createReferral(
-    newPlayerAddress,
-    {
-        bonusType: "STARTER_PACK",
-        duration: 30 * 24 * 3600 // 30 days
-    }
-);
+## 🤝 Referral Quests
 
-// Claim referral rewards
-await socialQuest.claimReferralReward(
-    referralId,
-    characterId
-);
-```
+Help the realm flourish by inviting new adventurers! The Referral Quest system rewards both the referrer and the new player (referree) when the new player achieves certain milestones.
 
-### Trading System
-```solidity
-// Create a trade offer
-const tradeId = await socialSystem.createTrade(
-    {
-        offeredItems: [itemId1, itemId2],
-        requestedItems: [itemId3],
-        duration: 3600 // 1 hour
-    }
-);
+### How Referrals Work
 
-// Accept trade
-await socialSystem.acceptTrade(tradeId);
-```
+1.  **Quest Definition:** Referral Quest templates are created (by admins) defining the rewards for both the referrer and the referree, the milestone the referree must reach (e.g., character level), and the time limit.
+    *   See: [`createReferralQuest` in SocialQuest API](./../api-reference/quest.md#createreferralquest)
+2.  **Registration:** An existing player (the referrer) can register a referral link with a new player (the referree).
+    *   This is done by providing the `characterId` for both the referrer and the referree.
+    *   A character cannot be referred multiple times for the same quest.
+    *   See: [`registerReferral` in SocialQuest API](./../api-reference/quest.md#registerreferral)
+3.  **Milestone Achievement:** The referree plays the game. When they reach the required milestone (e.g., level) defined in the `ReferralQuest`:
+    *   A system (likely needing approval to check character state) triggers the completion check.
+    *   See: [`completeReferralQuest` in SocialQuest API](./../api-reference/quest.md#completereferralquest)
+4.  **Completion & Rewards:** If the milestone is reached within the time limit:
+    *   The referral is marked complete.
+    *   Both the referrer and the referree automatically receive their defined token rewards.
 
-## 🎯 Cooperative Missions
+### Key Aspects
 
-### Raid Bosses
-```solidity
-// Initiate raid
-const raidId = await combatQuest.startRaid(
-    bossId,
-    {
-        minParticipants: 5,
-        maxParticipants: 10,
-        preparationTime: 300 // 5 minutes
-    }
-);
+-   **Incentivized Growth:** Rewards players for bringing active new users into the game.
+-   **Milestone-Based:** Rewards are tied to the new player actually engaging with the game and reaching goals.
 
-// Join raid
-await combatQuest.joinRaid(
-    raidId,
-    characterId,
-    preferredRole
-);
-```
+---
 
-### Territory Control
-```solidity
-// Claim territory
-const territoryId = await socialSystem.claimTerritory(
-    guildId,
-    location,
-    {
-        defenderCount: 3,
-        stakeAmount: ethers.parseEther("1000")
-    }
-);
-
-// Defend territory
-await socialSystem.assignDefenders(
-    territoryId,
-    [characterId1, characterId2, characterId3]
-);
-```
-
-## 📊 Social Rankings
-
-### Leaderboards
-```solidity
-// Get guild rankings
-const guildRankings = await analytics.getGuildRankings(
-    {
-        sortBy: "QUEST_COMPLETION",
-        timeframe: "SEASON",
-        limit: 10
-    }
-);
-
-// Get player rankings
-const playerRankings = await analytics.getPlayerRankings(
-    {
-        category: "PVP_WINS",
-        season: currentSeason
-    }
-);
-```
-
-### Achievements
-```solidity
-// Track guild achievements
-const guildProgress = await achievementQuest.getGuildProgress(
-    guildId,
-    achievementId
-);
-
-// Claim guild rewards
-await achievementQuest.claimGuildReward(
-    guildId,
-    achievementId
-);
-```
-
-## 🎮 Social Events
-
-### Guild Wars
-```solidity
-// Declare guild war
-const warId = await socialSystem.declareWar(
-    attackingGuildId,
-    defendingGuildId,
-    {
-        duration: 7 * 24 * 3600, // 1 week
-        stakingRequired: true,
-        warChest: ethers.parseEther("10000")
-    }
-);
-
-// Record war contribution
-await socialSystem.recordWarContribution(
-    warId,
-    characterId,
-    contributionType,
-    amount
-);
-```
-
-### Seasonal Events
-```solidity
-// Join seasonal event
-const eventId = await socialQuest.joinSeasonalEvent(
-    characterId,
-    eventType,
-    {
-        team: teamId,
-        contribution: ethers.parseEther("100")
-    }
-);
-
-// Track event progress
-const progress = await socialQuest.getEventProgress(
-    eventId,
-    characterId
-);
-```
-
-## 🤖 Communication Tools
-
-### Chat System
-```solidity
-// Send guild message
-await socialSystem.sendGuildMessage(
-    guildId,
-    message,
-    {
-        channel: "STRATEGY",
-        priority: "HIGH"
-    }
-);
-
-// Create party chat
-const chatId = await socialSystem.createPartyChat(
-    teamId,
-    {
-        voice: true,
-        persistent: false
-    }
-);
-```
-
-### Coordination Tools
-```solidity
-// Set raid markers
-await socialSystem.setRaidMarkers(
-    raidId,
-    positions,
-    {
-        markerType: "STRATEGY",
-        visibility: "RAID_MEMBERS"
-    }
-);
-
-// Schedule guild event
-await socialSystem.scheduleGuildEvent(
-    guildId,
-    eventType,
-    timestamp,
-    {
-        reminder: true,
-        requiredRoles: ["Officer", "Member"]
-    }
-);
-```
-
-Remember, brave adventurer: in unity lies strength! The greatest challenges and rewards await those who dare to band together! 🗡️✨ 
+*Forge alliances, conquer challenges together, and help our community thrive!* ✨ 

@@ -7,21 +7,25 @@ Welcome, master blacksmith! Here lies the knowledge of magical items and equipme
 ### createEquipment
 ```solidity
 function createEquipment(
-    string memory name,
-    string memory description,
+    string calldata name,
+    string calldata description,
     uint8 strengthBonus,
     uint8 agilityBonus,
-    uint8 magicBonus
-) external onlyOwner returns (uint256)
+    uint8 magicBonus,
+    Types.Alignment statAffinity, // Alignment that benefits most from this item
+    uint256 amount // Note: Amount currently unused in ID generation
+) external onlyRole(MINTER_ROLE) returns (uint256)
 ```
 Forges a new type of equipment into existence.
 
 **Parameters:**
-- `name`: The equipment's name
-- `description`: The equipment's description
+- `name`: The equipment\'s name
+- `description`: The equipment\'s description
 - `strengthBonus`: Bonus to strength stat
 - `agilityBonus`: Bonus to agility stat
 - `magicBonus`: Bonus to magic stat
+- `statAffinity`: The alignment that gains the most benefit (e.g., STRENGTH)
+- `amount`: (Currently unused for ID generation, but part of signature)
 
 **Returns:**
 - `uint256`: The unique identifier (tokenId) of the equipment type
@@ -30,16 +34,19 @@ Forges a new type of equipment into existence.
 - `EquipmentCreated(uint256 tokenId, string name, string description)`
 
 **Access:**
-- Only contract owner
+- `MINTER_ROLE` required
 
 **Example:**
 ```typescript
+// Assuming caller has MINTER_ROLE
 const equipmentId = await equipment.createEquipment(
-    "Dragon's Blade",
-    "A mighty sword forged in dragon's breath",
+    \"Dragon\'s Blade\",
+    \"A mighty sword forged in dragon\'s breath\",
     5,  // +5 strength
     2,  // +2 agility
-    0   // No magic bonus
+    0,  // No magic bonus
+    Types.Alignment.STRENGTH, // Favors Strength alignment
+    1 // Amount (currently unused for ID)
 );
 ```
 
@@ -249,38 +256,47 @@ Announces the creation of a new equipment type.
 ```solidity
 event EquipmentActivated(uint256 indexed tokenId)
 ```
-Announces when an equipment type becomes available.
+Signals that an equipment type has been activated.
 
 ### EquipmentDeactivated
 ```solidity
 event EquipmentDeactivated(uint256 indexed tokenId)
 ```
-Announces when an equipment type is disabled.
+Signals that an equipment type has been deactivated.
+
+### CharacterContractUpdated
+```solidity
+event CharacterContractUpdated(address indexed newContract)
+```
+Announces an update to the associated Character contract address.
 
 ## Data Structures 📚
 
 ### EquipmentStats
 ```solidity
+// Corresponds to PackedEquipmentStats in contract storage
 struct EquipmentStats {
-    uint8 strengthBonus;   // Bonus to strength
-    uint8 agilityBonus;    // Bonus to agility
-    uint8 magicBonus;      // Bonus to magic
-    bool isActive;         // Whether equipment is usable
-    string name;           // Equipment name
-    string description;    // Equipment description
+    uint8 strengthBonus;
+    uint8 agilityBonus;
+    uint8 magicBonus;
+    bool isActive;
+    Types.Alignment statAffinity;
+    string name;
+    string description;
 }
 ```
 
 ### SpecialAbility
+(Defined in `Types.sol`)
 ```solidity
 struct SpecialAbility {
-    string name;           // Name of the ability
-    string description;    // Description of what it does
-    TriggerCondition triggerCondition;  // When it can activate
-    uint256 triggerValue; // Threshold for activation
-    EffectType effectType;  // What kind of effect
-    uint256 effectValue;   // How strong the effect is
-    uint256 cooldown;      // Rounds between uses
+    string name;
+    string description;
+    Types.TriggerCondition triggerCondition; // e.g., ON_LOW_HEALTH
+    uint256 triggerValue;
+    Types.EffectType effectType; // e.g., DAMAGE_BOOST
+    uint256 effectValue;
+    uint256 cooldown; // In rounds/turns
 }
 ```
 
@@ -334,4 +350,4 @@ enum EffectType {
    - Use view functions for queries
    - Consider cooldown timing in ability design
 
-May your forge burn bright and your equipment serve heroes well! ⚔️✨
+May these sacred texts empower your crafting endeavors! ⚔️✨

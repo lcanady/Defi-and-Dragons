@@ -1,135 +1,60 @@
 # 📚 The Ancient Scrolls: API Reference
 
-## 🏰 Core Systems
+Welcome, developer-adventurer, to the collected knowledge of the DeFi & Dragons smart contracts! These scrolls detail the interfaces and functions that power our realm.
 
-### The Grand Facade
-The sacred gateway to all realms of interaction:
-```solidity
-interface IGameFacade {
-    // Forge a new hero
-    function createCharacter(Types.Stats memory initialStats, Types.Alignment alignment) external returns (uint256);
-    // Don or remove equipment
-    function equipItems(uint256 characterId, uint256 weaponId, uint256 armorId) external;
-    function unequipItems(uint256 characterId, bool weapon, bool armor) external;
-    // Embark on quests
-    function startQuest(uint256 characterId, uint256 questId) external;
-    function completeQuest(uint256 characterId, uint256 questId) external;
-    // Invoke divine drops
-    function requestRandomDrop(uint256 dropRateBonus) external returns (uint256);
-    // Trade in the bazaar
-    function listItem(uint256 equipmentId, uint256 price, uint256 amount) external;
-    function purchaseItem(uint256 equipmentId, uint256 listingId, uint256 amount) external;
-}
-```
+Use the `GameFacade` as your primary entry point for most interactions. Below are links to the detailed API references for each major system.
 
-### The Hero's Essence
-```solidity
-interface ICharacter {
-    // Breathe life into a new hero
-    function mintCharacter(address to, Types.Stats memory stats, Types.Alignment alignment) external returns (uint256);
-    // Glimpse a hero's essence
-    function getCharacter(uint256 characterId) external view returns (Types.Stats memory, Types.EquipmentSlots memory, Types.CharacterState memory);
-    // Don equipment
-    function equip(uint256 characterId, uint256 weaponId, uint256 armorId) external;
-    // Remove equipment
-    function unequip(uint256 characterId, bool weapon, bool armor) external;
-}
-```
+## Core Systems
 
-### The Combat Arts
-```solidity
-interface ICombatActions {
-    // Execute battle maneuvers
-    function executeMove(uint256 characterId, bytes32 moveId, uint256 targetId) external;
-    // Forge new combat techniques
-    function createMove(string memory name, uint256 baseDamage, uint256 scalingFactor, uint256 cooldown, ActionType[] memory triggers, uint256 minValue, SpecialEffect effect, uint256 effectValue) external returns (bytes32);
-    // Master combo paths
-    function createComboPath(bytes32 firstMoveId, bytes32 secondMoveId) external;
-}
-```
+*   **[Game Facade (`GameFacade.sol`)](./game-facade.md)**
+    *   The central gateway providing simplified access to all major game functions, including character creation, equipment management, quest interactions, marketplace actions, and DeFi integrations.
 
-### The Quest Tome
-```solidity
-interface IQuest {
-    // Begin your journey
-    function startQuest(uint256 characterId, uint256 questId) external;
-    // Claim your victory
-    function completeQuest(uint256 characterId, uint256 questId) external;
-    // Study quest requirements
-    function getQuestTemplate(uint256 questId) external view returns (QuestTemplate memory);
-}
-```
+*   **[Character (`Character.sol`)](./character.md)**
+    *   Manages the Character NFTs (ERC721), their core stats (Strength, Agility, Magic), state (Level, Health), and the creation of dedicated `CharacterWallet` contracts.
 
-### The Fellowship Bonds
-```solidity
-interface ISocialQuest {
-    // Form your fellowship
-    function formTeam(bytes32 questId, uint256[] calldata memberIds) external;
-    // Record heroic deeds
-    function recordContribution(bytes32 questId, uint256 characterId, uint256 value) external;
-    // Guide new adventurers
-    function registerReferral(bytes32 questId, uint256 referrerId, uint256 referreeId) external;
-    // Complete mentorship
-    function completeReferral(bytes32 questId, uint256 referrerId, uint256 referreeId) external;
-}
-```
+*   **[Equipment (`Equipment.sol`)](./equipment.md)**
+    *   Defines the properties and stats of equippable items (Weapons, Armor) as NFTs (ERC1155), including their stat affinities and special abilities.
 
-### The Arcane Markets
-```solidity
-interface IArcaneStaking {
-    // Channel your power
-    function deposit(uint256 poolId, uint256 amount) external;
-    // Withdraw your essence
-    function withdraw(uint256 poolId, uint256 amount) external;
-    // Glimpse your rewards
-    function pendingReward(uint256 poolId, address user) external view returns (uint256);
-}
+## Gameplay Systems
 
-interface IArcaneCrafting {
-    // Forge mystical items
-    function craftItem(uint256 recipeId) external returns (uint256);
-}
+*   **[Quest System](./quest.md)**
+    *   A modular system covering various quest types:
+        *   **`Quest.sol`**: Core logic for quest templates, objectives, and party/raid management.
+        *   **`CombatQuest.sol`**: Manages monster hunts and boss fights.
+        *   **`SocialQuest.sol`**: Handles team-based quests and player referrals.
+        *   **`TimeQuest.sol`**: Governs daily and seasonal quests with time-based bonuses.
+        *   **`ProtocolQuest.sol`**: Tracks quests involving interactions with specific DeFi protocols.
 
-interface IArcaneQuestIntegration {
-    // Begin mystical trials
-    function startQuest(uint256 characterId, uint256 questId) external;
-    // Complete your ritual
-    function completeQuest(uint256 characterId, uint256 questId) external;
-}
-```
+*   **[Combat System](./combat.md)**
+    *   Manages battle mechanics:
+        *   **`CombatDamageCalculator.sol`**: Calculates base damage from stats and equipment.
+        *   **`CombatActions.sol`**: Handles specific combat moves triggered by actions, battle state, combos, and critical hits.
+        *   **`CombatAbilities.sol`**: Defines elemental abilities, status effects, and elemental combos.
 
-### The Grand Bazaar
-```solidity
-interface IMarketplace {
-    // Display your wares
-    function listItem(uint256 equipmentId, uint256 price, uint256 amount) external;
-    // Acquire treasures
-    function purchaseItem(uint256 equipmentId, uint256 listingId, uint256 amount) external;
-    // Withdraw from trade
-    function cancelListing(uint256 equipmentId, uint256 listingId) external;
-}
-```
+*   **Item Drop (`ItemDrop.sol`)** *(Covered within relevant sections like Quest and Combat)*
+    *   Handles randomness (using `ProvableRandom`) for dropping equipment NFTs as rewards.
 
-### The Forbidden Scrolls
-```solidity
-interface IGameErrors {
-    // When access is denied by ancient wards
-    error NotAuthorized();
-    // When your coffers run dry
-    error InsufficientBalance();
-    // When the ritual is incorrectly performed
-    error InvalidParameters();
-    // When the quest scroll has faded
-    error QuestNotActive();
-    // When glory has already been claimed
-    error QuestAlreadyCompleted();
-    // When the item has vanished from the realm
-    error ItemNotAvailable();
-    // When more training is required
-    error InsufficientLevel();
-    // When ancient magic still recharges
-    error CooldownActive();
-}
-```
+*   **Marketplace (`Marketplace.sol`)** *(Covered within Game Facade)*
+    *   Allows players to list and purchase equipment NFTs using the game token.
 
-May these sacred interfaces guide your path through the realms of code, brave builder! 🏗️✨ 
+*   **Pet (`Pet.sol`)** *(Covered within Game Facade)*
+    *   Manages Pet NFTs that can be assigned to characters.
+
+*   **Mount (`Mount.sol`)** *(Covered within Game Facade)*
+    *   Manages Mount NFTs that can be assigned to characters.
+
+*   **Title (`Title.sol`)** *(Covered within Game Facade)*
+    *   Manages Title NFTs or attributes that can be awarded to characters.
+
+## DeFi Integration (Arcane Contracts)
+
+*(Interactions typically occur via the Game Facade)*
+
+*   **Arcane Staking**: Handles staking of game tokens or LP tokens.
+*   **Arcane Crafting**: Allows players to craft items using specific recipes and resources.
+*   **Arcane AMM (Factory/Pair/Router)**: Powers the in-game decentralized exchange features.
+*   **Arcane Quest Integration**: Links DeFi actions (staking, swapping, etc.) to specific quests (`ProtocolQuest`).
+
+---
+
+May these scrolls illuminate your path through the realms of code! 🏗️✨
