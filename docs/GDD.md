@@ -87,8 +87,8 @@
 ### 8. Monetization Strategy
 
 *   **Implemented Potential:**
-    *   NFT Sales: Minting functions in `Character.sol` and `Equipment.sol` are `onlyOwner` or `MINTER_ROLE`, suggesting primary sales.
-    *   Marketplace Fees: A percentage fee could be added to `Marketplace.sol` trades (currently absent).
+    *   NFT Sales.
+    *   Marketplace Fees: A percentage fee could be added to `Marketplace.sol` trades.
 
 ### 9. Target Audience
 
@@ -99,5 +99,5 @@
 ### 10. Current Status & Future Development (Based on Code vs. Docs)
 
 *   **Implemented:** Core NFT system (Character, Equipment), Action-Driven Combat triggered by DeFi, multiple Quest types (Combat, Protocol), basic Item Drops, basic Marketplace, Resource Farming via Staking, Party system.
-*   **Future/Discrepancies:** Advanced crafting, $GOLD-based stat training, PvP, Guilds/DAOs, Land gameplay, DeFi-powered abilities, advanced social features are mentioned in documentation but not present in the reviewed core contracts. The exact nature of `GameToken` and its relation to `$GOLD` needs clarification. `AttributeSystem.sol` purpose is unclear.
+*   **Future/Discrepancies:** Advanced crafting, $GOLD-based stat training, PvP, Guilds/DAOs, Land gameplay, DeFi-powered abilities, advanced social features are mentioned in documentation but not present in the reviewed core contracts.
 
