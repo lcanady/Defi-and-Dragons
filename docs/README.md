@@ -52,8 +52,6 @@ May your quests be bountiful and your yields ever high! 🐉✨
 
 ## Game Design Document (GDD) - Implemented Features (v0.2)
 
-**Date:** 2024-07-26
-
 This GDD reflects the features and mechanics observed from the codebase review.
 
 ### 1. Introduction & Vision

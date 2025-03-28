@@ -1,7 +1,7 @@
 ## DeFi & Dragons: Game Design Document (GDD) - Implemented Features
 
 **Version:** 0.2
-**Date:** 2024-07-26
+**Date:** 2025-03-28
 
 ### 1. Introduction & Vision
 
