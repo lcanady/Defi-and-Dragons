@@ -46,9 +46,7 @@ To set up the project locally for development or testing:
 
 Connect with other adventurers and the development team:
 
-- [Discord](https://discord.gg/defi-dragons) (Replace with actual link if available)
-- [Twitter](https://twitter.com/defidragons) (Replace with actual link if available)
-- [GitHub Repository](https://github.com/your-username/defi-and-dragons) (Replace with actual repo URL)
+- [GitHub Repository](https://github.com/lcanady/defi-and-dragons) (Replace with actual repo URL)
 
 May your quests be bountiful and your yields ever high! 🐉✨
 
