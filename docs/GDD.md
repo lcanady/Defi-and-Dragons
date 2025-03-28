@@ -82,7 +82,7 @@
 
 ### 7. Art Style & Audio
 
-*   *(TBD - Not determinable from code)* Needs definition.
+*   *(TBD)
 
 ### 8. Monetization Strategy
 
