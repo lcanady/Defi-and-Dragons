@@ -1,4 +1,5 @@
-lib/
+# Dependencies
+/lib/
 out/
 cache/
 lib/forge-std
