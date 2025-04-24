@@ -46,7 +46,7 @@ To set up the project locally for development or testing:
 
 Connect with other adventurers and the development team:
 
-- [GitHub Repository](https://github.com/lcanady/defi-and-dragons) (Replace with actual repo URL)
+- [GitHub Repository](https://github.com/lcanady/defi-and-dragons)
 
 May your quests be bountiful and your yields ever high! 🐉✨
 
