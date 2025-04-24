@@ -24,7 +24,7 @@ To set up the project locally for development or testing:
 
 1.  **Clone the Repository:**
     ```bash
-    git clone https://github.com/lcanady/defi-and-dragons.git # Replace with actual repo URL
+    git clone https://github.com/lcanady/defi-and-dragons.git
     cd defi-and-dragons
     ```
 2.  **Install Dependencies:** (Assuming Foundry is used)
